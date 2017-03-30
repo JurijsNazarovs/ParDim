@@ -1,0 +1,34 @@
+Classes of tasks:
+
+coreTask - tasks, which can be combined with integrTasks. Any of coreTasks
+can be before any of integrTask. Elements of this class are executed before
+integrTask.
+Current implementation: download, preprocess.
+All scripts do not have stages, but have options
+
+integrTask - tasks, which can be integrated by user. They cannot be equal to
+any element of coreTask.
+Current implementation: allignment, peakcaller using spp.
+Scripts might have stages and options.
+
+Both coreTask and integrTask have order inside the class.
+
+Scripts for tasks are in coreTaskScript and integrTaskScript. All scripts have 
+to read arguments just from args.list. There are 2 possible sections in the
+args.list for a script to read arguments:
+##[ ParDim.sh ]## and ##[ "$integrTask" ]##.
+
+Checking points in the Main script:
+0. Stages eligible and make sense
+   a) no support of first or last stages
+   b) first stage after the last
+1. not just download:
+   a) legible outPath
+   b) if no selectJobsTabPath =>  inpPath exists? (if yes, then)
+      b1) if download => create name for selectJobsTabPath and
+      fill it later, once downlaoding is done
+      b2) if no download => create name for selectJobsTabPath and
+      fill it using inpPath
+      
+   c) if selectJobsTabPath, then every path in list exists also from b the same
+2. Download: availability to write in inpPath.

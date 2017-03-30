@@ -1,0 +1,48 @@
+Description of current pipeline:
+
+ParDim.sh - main shell script which reads file with arguments and generates the main dag, with 3 possible tasks.
+args.list - files with arguments for pipeDag.sh
+
+pipeDag.sh is executed, providing list with arguments
+
+exeMultiDag.sh - executed by condor (or not), to execute another script for every folder
+checkArgsList.sh - checks the argument file
+
+funcList.sh - list of all functoins, which are used everywhere. New function => in funcList.sh
+makeAquasDag.sh - Aquas dag maker
+makeCon.sh - Condor maker
+
+something new
+
+makeReport - creates several useful files with information about submitted jobs
+
+
+## boostDownload.sh
+If not original name then names are taken from columns as extension using
+
+
+## Structure of pipeline
+
+Structure is following:
+Repeat for all task in a right order:
+       1) create dag using "taskScript"
+       2) execute dag with name "taskDag"
+
+[Create dag]
+     Downloading: boostDownload.sh is executed to create dag.
+     Any other: exeMultiDag.sh is executed to create dag corresponding to taskScript - dagMaker.
+
+[exeMultiDag.sh]
+     This script executes "makeDag.script (for one folder)" for selected or all
+     jobs in inpPath and collect names of all constructed dags in one file
+     (using SPLICE). Output dag is taskDag
+
+[taskDag]
+     File, where each row correspond to "SPLICE DAG# pathToDagForSpecificFolder".
+     Thus, we have number of lines equal to number of analysed folders.
+
+[DagForSpecificFolder]
+     Has a structure of condor jobs using Parent-Child Hierarchy.
+     Independent nodes are exucuted on different machines.
+
+

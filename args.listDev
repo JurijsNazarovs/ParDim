@@ -1,0 +1,59 @@
+## [ parDim.sh ] ##
+#tabPath                 tables/encode3GRCh38.csv2
+inpPath                 /mnt/gluster/nazarovs/tmp/testData
+outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
+#firstStage		pseudosdf
+#lastStage		idroverlapdfsdfs
+jobsDir		        dagRuns/test
+selectJobsTabPath       
+
+## [ Download ] ##
+execute                 false
+tabDelim		,
+tabDelimJoin            ;
+tabDirCol               1
+tabIsOrigName           true
+tabRelNameCol           2
+tabIsSize               false
+nDotsExt                1
+
+## [ Preprocess ] ##
+execute                 true
+execute                 hui
+pizda                   pider
+
+## [ Aquas ] ##
+specName		hg19
+specList		species.list
+specTar		        species.tar.gz
+coresNum		16
+trueRep		        false
+
+
+## [ Allignment ] ##
+bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
+bwaIndexName		GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
+bwaSoftwareLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/bwa.tar.gz
+rLink		        http://proxy.chtc.wisc.edu/SQUID/yzheng74/R.tar.gz
+csemLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/csem.tar.gz
+perlLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/perl.tar.gz
+nBWA	                	2
+oBWA		                1
+tBWA		                4
+mBWA		                99
+qBWA		                5
+lBWA		        32
+kBWA		                              2
+fragL		                                200
+AllocThres	                                	500
+capping		                                        0
+outfile		                                        one_dnase
+saveFiles		FALSE
+maxHistone		6
+outputFormat		tagAlign
+chipThres		500
+chromRefLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/chrom.ref
+
+
+
+1 - yes

@@ -1,0 +1,64 @@
+[+] in ParDim checkArgsList looks redundend and probably has to be deleted
+[-] Fill args.listDev
+[-] Check what will be if Condor fail to create dag file
+[-] Think about providing first stage as condor or local
+[+] Check in "$tabOut" of boostDownload.sh last columns to see if there are some repetitve values. If there are, then it means that in the file: same folder + same relative file _ origName=false.
+[-] rewrite MakeCon.sh file, using more options including cores for makeAquasDag.sh
+[-] make a specific error from BDS if there is a segmentation fault. Then I can put constraint on_exit in condor file, so that it is repeated untill there is another error.
+[+] fix errMsg, so that I can input it even if > /dev/null
+[-] If no core labels in the file then just ignore them. That is,
+    need to create a special error in readArgs, which returns specific value
+    if label not found.
+
+
+
+## ========= ParDim.sh ====== ##
+input of:
+      stages for scripts. In every section first and Last stage. if no last, then use last as first and another way
+      
+      tree scripts
+      download script
+      preprocess script
+
+check that integrTask != coreTask, including scripts
+
+how to change mapStages, so that people can provide their stages
+
+#############################
+[-]Prep-process (A lot of question here)
+
+[1] Trimming
+[2] From bam
+
+
+
+# Trimming questions
+1) Are we going to use data which is not downloaded, so, if this is in local server.
+2) Assume we have another part, which calls dataPreparation. This part should be similar to makeAqausDag.sh. Lets call it makePrepDag.sh.
+
+So, we still use same structure of the pipeline, adding new taskscript as makePrepDag.sh. Thus, for every of of the directory we will have SPLICE specificDir.dag.
+
+
+######
+create specificDir.dag using makePrepDag:
+
+Read trimFiles - verctor of different combinations to trim. like, "chip,ctl;dnase"
+Need to create 2 different classes of parents for every group between semicolumns - call such groups between semicolumns as group A.
+For every type in group A, we detect right corresponding files using ctlExt, chipExt and etc. We also detect the minimum length of reads using all files in a group.
+For every file we create a Parent to trim file. We use 1 condor with 1 executable - exeFilePrep.sh. and generate right argument file.
+
+Thus, for Parent we will have 2 variables: Operation = trim and argsListName (and maybe other condor parameters.)
+
+Thus, the exeFilePrep.sh should accept 2 parameters: method of data preparation and argslist.
+
+
+
+
+#######
+[-] Submitting Aquas part
+
+There is a huge problem with submitting aquas part alone withought any part before.
+1) Aquas part take too much time to unpack files and pack back to create dag files. About 4 mins for 1 dir. => need to unpack them in allignment part, create some flags and read flags in aquas.
+
+2) If start aquas as a first step, then all these 4 mins for every directory will start to implement on machine. Thus, need to use screen - which is not reliable or poot it in Condor. TO put it in Condor, necessary to provide hello.sh script as a taskScript instead of downloading. Emptu taskDag. Provide file with selected dirs (selectJobsTabPath)
+
