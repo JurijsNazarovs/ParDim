@@ -85,7 +85,7 @@ readarray -t taskAll <<<\
           )"
 
 
-echo "taskAll: ${taskAll[@]}"
+echo "taskAll here: ${taskAll[@]}"
 exit 1
 
 ## Decision to use coreTask
