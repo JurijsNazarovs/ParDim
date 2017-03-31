@@ -96,56 +96,28 @@ chkEmptyArgs(){
   for argLab in "$@"
   do
     eval arg='$'$argLab
-    if [[ "$(rmSp $arg)" = "" ]]; then
-        errMsg "Imput argument \"$argLab\" is empty"
+    if [[ -z $(rmSp "$arg") ]]; then
+        errMsg "Input argument \"$argLab\" is empty"
     fi
   done
-}
-
-chkInp(){ #OLD
-  # $1 - input type: d,f,etc
-  # $2 - path to the folder, file, etc
-  # $3 - label to show in case of error
-
-  local inpLbl="$3"
-  if [[ $(rmSp "$inpLbl") = "" ]]; then
-      inpLbl="$2"
-  fi
-
-  if [[ $(rmSp "$2") = "" ]]; then
-      errMsg "$3 is empty"
-  else
-    if [ ! -$1 "$2" ]; then 
-        errMsg "$3 does not exist"
-    fi
-  fi
 }
 
 chkExist(){
   # $1 - input type: d,f,etc
   # $2 - path to the folder, file, etc
   # $3 - label to show in case of error
-  if [[ $(rmSp "$2") = "" ]]; then
+
+  local inpLbl="$3"
+  if [[ -z $(rmSp "$inpLbl") ]]; then
+      inpLbl="$2"
+  fi
+
+  if [[ -z $(rmSp "$2") ]]; then
       errMsg "$3 is empty"
   else
     if [ ! -$1 "$2" ]; then 
         errMsg "$3 does not exist"
     fi
-  fi
-}
-
-checkAvailToWrite(){ #OLD
-  ## Function checks if it is possible to write in path $1
-  local path=${1:-""}
-  if [ "$(rmSp $path)" == "" ]; then
-      errMsg "Input argument (path) is empty"
-  fi
-
-  local  out=$(mktemp -q "$path"/output.XXXXXXXXXX.) #try to create tmp file inside
-  if [ "$(rmSp $out)" == "" ]; then
-      errMsg "Impossible to write in $path"
-  else
-    rm -rf "$out" #delete what we created
   fi
 }
 
@@ -159,7 +131,7 @@ chkAvailToWrite(){
   for pathLab in "$@"; do
     eval path='$'$pathLab
     outFile=$(mktemp -q "$path"/outFile.XXXXXXXXXX.) #try to create file inside
-    if [[ $(rmSp "$outFile") = "" ]]; then
+    if [[ -z $(rmSp "$outFile") ]]; then
         errMsg "Impossible to write in $path"
     else
       rm -rf "$outFile" #delete what we created
@@ -167,7 +139,7 @@ chkAvailToWrite(){
   done
 }
 
-checkUrl(){
+chkUrl(){
   local string=$1
   local regex='^(https?|ftp|file)://'
   regex+='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-‌​A-Za-z0-9\+&@#/%=~_|‌​]$'
@@ -398,11 +370,14 @@ readArgs(){
   # Input:
   #       -argsFile   file with arguments
   #       -scrLabNum  number of script labels
-  #       -scrLabList vector of names of  script to search for arguments after
-  #                   ##[ scrLab ]##. tolowerCase + no spaces are applied.
+  #       -scrLabList vector of name of scripts to search for arguments after
+  #                   ##[ scrLab ]##. Case sensetive. Spaces are not important.
   #                   If scrLab = "", the whole file is searched for arguments,
   #                   and the last entry is selected.
-  #       -posArgs    possible arguments to search for
+  #       -posArgNum  number of arguments to read
+  #       -posArgList possible arguments to search for
+  #       -reservArg  reserved argument which can't be duplicated
+  #       -isSkipLab  true = no error for missed labels
   #
   # args.list has to be written in a way:
   #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
@@ -412,22 +387,24 @@ readArgs(){
 
   ## Input
   local argsFile="$1"
-  chkInp "f" "$argsFile" "List of arguments"
+  chkExist "f" "$argsFile" "List of arguments"
   shift
 
+  # Get list of labels to read
   local scrLabNum=${1:-"0"} #0-read whole file
   shift
 
   local scrLabList
+  local scrLab
   if [[ $scrLabNum -eq 0 ]]; then
       scrLabList=""
   else
     while (( scrLabNum -- > 0 )) ; do
-      scrLab=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-      scrLabNoSp=$(rmSp "$scrLab")
-      if [[ ${#scrLab} -ne ${#scrLabNoSp} ]]; then
+      #scrLab=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+      scrLab="$1"
+      if [[ $(rmSp "$scrLab") != "$scrLab" ]]; then
           errMsg "Impossible to read arguments for \"$scrLab\".
-               Remove spaces: \"$scrLab\" ----> \"$scrLabNoSp\""
+                  Remove spaces: $scrLab"
       fi
 
       scrLabList+=( "$scrLab" )
@@ -435,29 +412,63 @@ readArgs(){
     done
   fi
 
-  local posArgs=("$@")
+  # Get list of arguments to read
+  local posArgNum=${1:-"0"} 
+  shift
+  if [[ $posArgNum -eq 0 ]]; then
+      errMsg "No arguments to read from $argsFile"
+  fi
+
+  local posArgList
+  local posArg
+  if [[ $posArgNum -eq 0 ]]; then
+      posArgList=""
+  else
+    while (( posArgNum -- > 0 )) ; do
+      posArg="$1"
+      if [[ $(rmSp "$posArg") != "$posArg" ]]; then
+          errMsg "Possible argument cannot have spaces: $posArg"
+      fi
+
+      posArgList+=( "$posArg" )
+      shift
+    done
+  fi
+
+  # Other inputs
+  local reservArg=${1:-""}
+  shift
+
+  local isSkipLab=${1:-"false"}
+  shift
+
+  if [[ "$isSkipLab" != true && "$isSkipLab" != false ]]; then
+      warnMsg "The value of isSkipLab = $isSkipLab is not recognised.
+               Value false is assigned"
+  fi
+
+
+  # Detect start and end positions to read between and read arguments
   for scrLab in "${scrLabList[@]}"; do
-    
-    ## Read arguments and corresponding values
     local rawStart="" #will read argFile from here
     local rawEnd="" #until here
 
     if [[ -n "$scrLab" ]]; then
         readarray -t rawStart <<<\
-                  "$(awk -v pattern="^(##)\\\[$scrLab\\\](##)$"\
+                  "$(awk -v pattern="^##\\\[$scrLab\\\]##$"\
                    '{
-                     gsub (" ", "", $0); #delete spaces
-                     if (tolower($0) ~ pattern){
+                     gsub (" ", "", $0) #delete spaces
+                     if ($0 ~ pattern){
                         print (NR + 1)
                      }
                     }' < "$argsFile"
                  )"
         
         if [[ ${#rawStart[@]} -gt 1 ]]; then
-            rawStart=("$(joinToStr ", " "${rawStart[@]}")")
+            rawStart="$(joinToStr ", " "${rawStart[@]}")"
             errMsg "Impossible to detect arguments for $scrLab in $argsFile.
-                  Label: ##[ $scrLab ]## appears several times.
-                  Lines: $rawStart"
+                   Label: ##[ $scrLab ]## appears several times.
+                   Lines: $rawStart"
         fi
 
         if [[ -n "$rawStart" ]]; then
@@ -466,28 +477,35 @@ readArgs(){
                        '{ 
                          if (NR < rawStart) {next}
  
-                         gsub (" ", "", $0);
-                         if (tolower($0) ~ /^(##)\[.*\](##)$/){
+                         gsub (" ", "", $0)
+                         if ($0 ~ /^##\[.*\]##$/){
                           print (NR - 1)
+                          exit
                          }
                         }' < "$argsFile"
                      )"
-            rawEnd="${rawEnd[0]}"
         else
+          # Check if any other labels appear. rawEnd here is label, not number
           readarray -t rawEnd <<<\
                     "$(awk\
                       '{
                         origLine = $0
-                        gsub (" ", "", $0);
-                        if (tolower($0) ~ /^(##)\[.*\](##)$/){
+                        gsub (" ", "", $0)
+                        if ($0 ~ /^##\[.*\]##$/){
                            print origLine
                         }
                        }' < "$argsFile"
                      )"
           
           if [[ -n "$rawEnd" ]]; then
-              errMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
-                    other labels exist, line: $rawEnd"
+              if [[ "$isSkipLab" = true ]]; then
+                  return "2"
+              else
+                rawEnd="$(joinToStr ", " "${rawEnd[@]}")"
+                errMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
+                        other labels exist:
+                        $rawEnd"    
+              fi
           fi
         fi
         
@@ -504,7 +522,7 @@ readArgs(){
     if [[ "$rawStart" -gt "$rawEnd" ]]; then
         errMsg "No arguments after ##[ $scrLab ]## in $argsFile!"
     fi
-
+    
     echoLineSh
     if [[ -n "$scrLab" ]]; then
         echo "Reading arguments in \"$scrLab\" section from \"$argsFile\""
@@ -525,18 +543,22 @@ readArgs(){
       varsList["$firstCol"]="$(sed -e "s#[\"$]#\\\&#g" <<< "$restCol")"
     done <<< "$(awk -v rawStart=$rawStart -v rawEnd=$rawEnd\
               'NF > 0 && NR >= rawStart; NR == rawEnd {exit}'\
-              "$argsFile")" 
-    local i
+              "$argsFile")"
     
+    local i
     for i in ${!nRepVars[@]}; do
-     if [[ ${nRepVars[$i]} -gt 1 ]]; then
-         warnMsg "Argument $i is repeated ${nRepVars[$i]} times.
-                  Last value $i = ${varsList[$i]} is recorded."
-     fi
+      if [[ ${nRepVars[$i]} -gt 1 ]]; then
+          if [[ "$i" = "$reservArg" ]]; then
+              errMsg "$i - reserved argument and cannot be duplicated"
+          fi
+
+          warnMsg "Argument $i is repeated ${nRepVars[$i]} times.
+                   Last value $i = ${varsList[$i]} is recorded."
+      fi
     done
 
     # Assign variables
-    for i in ${posArgs[@]}; do
+    for i in ${posArgList[@]}; do
       if [[ -n $(rmSp "${varsList[$i]}") ]]; then
           eval $i='${varsList[$i]}' #define: parameter=value
           exFl=$?
@@ -564,7 +586,7 @@ printArgs(){
 
   ## Print
   echoLineSh
-  if [[ -n "$(rmSp $curScrName)" ]]; then
+  if [[ -n $(rmSp "$curScrName") ]]; then
       echo "Arguments for $curScrName:"
   else
     echo "Arguments"
@@ -585,7 +607,7 @@ mk_dir(){ #Delete.
   # right way.
 
   local dirName=$1
-  if [[ -z "$(rmSp $dirName)" ]]; then
+  if [[ -z $(rmSp "$dirName") ]]; then
       errMsg "Input is empty"
   fi
 

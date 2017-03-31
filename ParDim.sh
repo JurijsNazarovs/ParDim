@@ -56,6 +56,9 @@ if [ -n "$(getInd "-1" ${integrTaskStage[@]})" ]; then
     echo "[dev] wrong input of taskStage"
 fi
 
+
+######## This part is important, need to move later.
+######## Need to define core and integrated tasks first
 task=("${coreTask[@]}" "${integrTask[@]}")
 taskScript=("${coreTaskScript[@]}" "${integrTaskScript[@]}")
 
@@ -66,6 +69,24 @@ for i in "${task[@]}"; do
                "$(joinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
 done
 
+## Detect executable tasks from the file: core and integrated
+# Detect all possible labels of scritps based on pattern:
+# ##[scrLab]## - Case sensetive. Spaces are not important.
+
+readarray -t taskAll <<<\
+          "$(awk -v pattern="^(##)\\\[.*\\\](##)$"\
+           '{
+             gsub (" ", "", $0) #delete spaces
+             if ($0 ~ pattern){
+                scrLab = gensub(/##\[(.*)\]##/, "\\1", "", $0)
+                print scrLab
+             }
+            }' < "$argsFile"
+          )"
+
+
+echo "taskAll: ${taskAll[@]}"
+exit 1
 
 ## Decision to use coreTask
 for i in ${!coreTask[@]}; do

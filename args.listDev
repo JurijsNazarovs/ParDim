@@ -17,9 +17,11 @@ tabRelNameCol           2
 tabIsSize               false
 nDotsExt                1
 
-## [ Preprocess ] ##
+## [Preprocess ] ##
 execute                 true
 execute                 hui
+
+                        pizda
 pizda                   pider
 
 ## [ Aquas ] ##
@@ -30,7 +32,7 @@ coresNum		16
 trueRep		        false
 
 
-## [ Allignment ] ##
+##[ Allignment ]##
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
 bwaIndexName		GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 bwaSoftwareLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/bwa.tar.gz

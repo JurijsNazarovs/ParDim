@@ -4,7 +4,10 @@ coreTask - tasks, which can be combined with integrTasks. Any of coreTasks
 can be before any of integrTask. Elements of this class are executed before
 integrTask.
 Current implementation: download, preprocess.
-All scripts do not have stages, but have options
+All scripts do not have stages, but have options.
+[Why options?] For example, in preprocess it is assumed to be a combination of
+tasks so that just some of them can be executed without neccessarity to execute
+all tasks in a sequence.
 
 integrTask - tasks, which can be integrated by user. They cannot be equal to
 any element of coreTask.

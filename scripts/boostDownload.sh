@@ -204,7 +204,7 @@ for i in ${colIter[@]}; do
       sizeCol=0
       for ((j = 0; j < ${#linkCol[@]}; j++)); do
         
-        if [[ $(checkUrl "${linkCol[j]}") = false ]]; then
+        if [[ $(chkUrl "${linkCol[j]}") = false ]]; then
             errMsg "Url is not valid: ${linkCol[j]}
                     Column: $i -  ${colName[$((i-1))]}
                     Row: $rowErrInd"
