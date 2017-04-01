@@ -71,9 +71,8 @@ done
 
 ## Detect executable tasks from the file: core and integrated
 # Detect all possible labels of scritps based on pattern:
-# ##[scrLab]## - Case sensetive. Spaces are not important.
-
-readarray -t taskAll <<<\
+# ##[scrLab]## - Case sensetive. Spaces are not important at all.
+readarray -t taskPos <<<\
           "$(awk -v pattern="^(##)\\\[.*\\\](##)$"\
            '{
              gsub (" ", "", $0) #delete spaces
@@ -82,12 +81,24 @@ readarray -t taskAll <<<\
                 print scrLab
              }
             }' < "$argsFile"
-          )"
+          )" #has to keep order of taskPos!
 
+taskPosNoDupl=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq))
+if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
+    # Just values which are repeated once
+    taskPosUniq=($(echo "${taskPos[@]}" | tr " " "\n" | uniq -u))
+    taskPosDupl=($(echo "${taskPosNoDupl[@]}" "${taskPosUniq[@]}" |
+                       tr " " "\n" |
+                       sort |
+                       uniq -u))
+    taskPosDupl=("$(joinToStr ", " "${taskPosDupl[@]}")")
+    errMsg "Duplicates of tasks are impossible.
+            Followings tasks are duplicated:
+            ${taskPosDupl[@]}"
+fi
 
-echo "taskAll here: ${taskAll[@]}"
+echo "Possible tasks in order: ${taskPos[@]}"
 exit 1
-
 ## Decision to use coreTask
 for i in ${!coreTask[@]}; do
   execute=false

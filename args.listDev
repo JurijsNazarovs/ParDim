@@ -1,4 +1,4 @@
-## [ parDim.sh ] ##
+##[ parDim.sh ]##
 #tabPath                 tables/encode3GRCh38.csv2
 inpPath                 /mnt/gluster/nazarovs/tmp/testData
 outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
@@ -7,7 +7,7 @@ outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
 jobsDir		        dagRuns/test
 selectJobsTabPath       
 
-## [ Download ] ##
+##[ Download ]##
 execute                 false
 tabDelim		,
 tabDelimJoin            ;
@@ -17,19 +17,23 @@ tabRelNameCol           2
 tabIsSize               false
 nDotsExt                1
 
-## [Preprocess ] ##
+##[ Preprocess ]##
+
+###[ Preprocess ]##
 execute                 true
-execute                 hui
 
                         pizda
 pizda                   pider
 
-## [ Aquas ] ##
+###[ Aquas ]##
 specName		hg19
 specList		species.list
 specTar		        species.tar.gz
 coresNum		16
 trueRep		        false
+
+
+## [ Aquas ] ##
 
 
 ##[ Allignment ]##

@@ -387,7 +387,7 @@ readArgs(){
 
   ## Input
   local argsFile="$1"
-  chkExist "f" "$argsFile" "List of arguments"
+  chkExist "f" "$argsFile" "File with arguments"
   shift
 
   # Get list of labels to read
@@ -465,7 +465,7 @@ readArgs(){
                  )"
         
         if [[ ${#rawStart[@]} -gt 1 ]]; then
-            rawStart="$(joinToStr ", " "${rawStart[@]}")"
+            rawStart=("$(joinToStr ", " "${rawStart[@]}")")
             errMsg "Impossible to detect arguments for $scrLab in $argsFile.
                    Label: ##[ $scrLab ]## appears several times.
                    Lines: $rawStart"
@@ -501,7 +501,7 @@ readArgs(){
               if [[ "$isSkipLab" = true ]]; then
                   return "2"
               else
-                rawEnd="$(joinToStr ", " "${rawEnd[@]}")"
+                rawEnd=("$(joinToStr ", " "${rawEnd[@]}")")
                 errMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
                         other labels exist:
                         $rawEnd"    
