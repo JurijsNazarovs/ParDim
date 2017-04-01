@@ -6,51 +6,51 @@
 
 
 ## Different printing lines
-echoLine(){
+EchoLine(){
   echo "-------------------------------------------------------------------------------------"
 }
 
-echoLineSh(){
+EchoLineSh(){
   echo "----------------------------------------"
 }
 
-echoLineBold(){
+EchoLineBold(){
   echo "====================================================================================="
 }
 
-echoLineBoldSh(){
-  echo "================================================================"
+EchoLineBoldSh(){
+  echo "========================================"
 }
 
-printfLine(){
+PrintfLine(){
   #printf "#"
   #printf -- "-%.0s" $(seq 1 85)
   #printf "\n"
   printf "#--------------------------------------------------------------------------------\n"
 }
 
-printfLineSh(){
+PrintfLineSh(){
   printf "#----------------------------------------\n"
 }
 
-printfLineBold(){
+PrintfLineBold(){
   printf "#================================================================================\n"
 }
 
-printfLineBoldSh(){
-  printf "#==============================================\n"
+PrintfLineBoldSh(){
+  printf "#========================================\n"
 }
 
 
 ## Base functions. Functions, which are included in other (void)
 
-rmSp(){
+RmSp(){
   # Function returns the same line but without any spaces
-  # Execution: $(rmSp "hui. t ebe"))
+  # Execution: $(RmSp "hui. t ebe"))
   echo "$1" | tr -d '\040\011\012\015'
 }
 
-warnMsg(){
+WarnMsg(){
   # Function displays an error message $1 and returns exit code $2
   # Use:  errMsg "Line1!
   #               Line2" 1
@@ -58,37 +58,39 @@ warnMsg(){
   # It is done to make code beautiful, so that in code I can put tabs.
   msg=${1:-"Default message about warning"}
 
-  echoLineSh
-  printf "Warning!\n"
+  echo "*******************************************"
+  #EchoLineSh
+  printf "WARNING!\n"
   # Replace \n[\t]+ with \n
   sed -e ':a;N;$!ba;s/\n[ \t]\+/\n/g' <<<  "$msg"
-  echoLineSh
+  echo "*******************************************"
+  #EchoLineSh
+  #echo "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-"
 }
 
-errMsg(){
+ErrMsg(){
   # Function displays an error message $1 and returns exit code $2
-  # Use:  errMsg "Line1!
+  # Use:  ErrMsg "Line1!
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
   local msg=${1:-"Default message about error"}
   local exFl=${2:-"1"} #default exit code
 
-  echoLineSh >> /dev/stderr
+  EchoLineBoldSh >> /dev/stderr
   
-  local strTmp="Error!\n$msg\n"
+  local strTmp="ERROR!\n$msg\n"
   # Replace \n[\t]+ with \n
   printf "$strTmp" | sed -e ':a;N;$!ba;s/\n[ \t]\+/\n/g' >> /dev/stderr
   
-  echoLineSh >> /dev/stderr
+  EchoLineBoldSh >> /dev/stderr
   exit $exFl
 }
 
 
-
 ## Status functions. Functions, which check some conditions (boolean)
 
-chkEmptyArgs(){
+ChkEmptyArgs(){
   ## Function checks if any of arguments is empty.
   local argLab
   local arg
@@ -96,34 +98,34 @@ chkEmptyArgs(){
   for argLab in "$@"
   do
     eval arg='$'$argLab
-    if [[ -z $(rmSp "$arg") ]]; then
-        errMsg "Input argument \"$argLab\" is empty"
+    if [[ -z $(RmSp "$arg") ]]; then
+        ErrMsg "Input argument \"$argLab\" is empty"
     fi
   done
 }
 
-chkExist(){
+ChkExist(){
   # $1 - input type: d,f,etc
   # $2 - path to the folder, file, etc
   # $3 - label to show in case of error
 
   local inpLbl="$3"
-  if [[ -z $(rmSp "$inpLbl") ]]; then
+  if [[ -z $(RmSp "$inpLbl") ]]; then
       inpLbl="$2"
   fi
 
-  if [[ -z $(rmSp "$2") ]]; then
-      errMsg "$3 is empty"
+  if [[ -z $(RmSp "$2") ]]; then
+      ErrMsg "$3 is empty"
   else
     if [ ! -$1 "$2" ]; then 
-        errMsg "$3 does not exist"
+        ErrMsg "$3 does not exist"
     fi
   fi
 }
 
-chkAvailToWrite(){
+ChkAvailToWrite(){
   ## Function checks if it is possible to write in path $1
-  chkEmptyArgs "$@"
+  ChkEmptyArgs "$@"
 
   local pathLab
   local path
@@ -131,15 +133,15 @@ chkAvailToWrite(){
   for pathLab in "$@"; do
     eval path='$'$pathLab
     outFile=$(mktemp -q "$path"/outFile.XXXXXXXXXX.) #try to create file inside
-    if [[ -z $(rmSp "$outFile") ]]; then
-        errMsg "Impossible to write in $path"
+    if [[ -z $(RmSp "$outFile") ]]; then
+        ErrMsg "Impossible to write in $path"
     else
       rm -rf "$outFile" #delete what we created
     fi
   done
 }
 
-chkUrl(){
+ChkUrl(){
   local string=$1
   local regex='^(https?|ftp|file)://'
   regex+='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-‌​A-Za-z0-9\+&@#/%=~_|‌​]$'
@@ -151,26 +153,26 @@ chkUrl(){
   fi
 }
 
-chkStages(){
+ChkStages(){
   local fStage=$1
   local lStage=$2
   if [[ "$fStage" -eq -1 ]]; then
-      errMsg "First stage is not supported." 
+      ErrMsg "First stage is not supported." 
   fi
 
   if [[ "$lStage" -eq -1 ]]; then
-      errMsg "Last stage is not supported."
+      ErrMsg "Last stage is not supported."
   fi
 
   if [[ "$ftStage" -gt "$lStage" ]]; then 
-      errMsg "First stage cannot be after the last stage."
+      ErrMsg "First stage cannot be after the last stage."
   fi
 }
 
 
 ## Mapping functions
 
-mapStage(){
+MapStage(){
   # Function maps input to numbers for comparison purpose
   # Input is the stage
   case "$1" in
@@ -188,11 +190,11 @@ mapStage(){
   esac
 }
 
-joinToStr(){
+JoinToStr(){
   # Join all element of an array in one string
   # $1 is the splitting character
   # >$1 everything to combine
-  # Using: joinToStr "\' \'" "$a" "$b" ... ("$a[@]")
+  # Using: JoinToStr "\' \'" "$a" "$b" ... ("$a[@]")
   spC=$1
   shift
 
@@ -207,7 +209,7 @@ joinToStr(){
   echo "$args"    
 }
 
-getNumLines(){
+GetNumLines(){
   # Function returns number of lines in the file
   fileName=$1
 
@@ -218,7 +220,7 @@ getNumLines(){
   fi
 }
 
-max(){
+Max(){
   # Function returns the maximum element among the input
   # Input: max 1 2 3 4 5 Or max ${arr[@]}
   local res=$1
@@ -233,7 +235,7 @@ max(){
   echo "$res"
 }
 
-min(){
+Min(){
   # Function returns the minimum element among the input
   # Input: min 1 2 3 4 5 Or min ${arr[@]}
   local res=$1
@@ -248,20 +250,20 @@ min(){
   echo "$res"
 }
 
-interInt(){
+InterInt(){
   # Function intersect 2 intervals
   # Is used to find inclussion of stages
   # output: 1-intersect, 0 -no
   
   if [ "$#" -ne 2 ]; then
-      errMsg "Wrong input! Two intervals has to be provided and not $# value(s)"
+      ErrMsg "Wrong input! Two intervals has to be provided and not $# value(s)"
   fi
 
   local a=($1) 
   local b=($2)
   
   if [[ ${#a[@]} -ne 2 || ${#b[@]} -ne 2 ]]; then
-      errMsg "Wrong input! Intervals shoud have 2 finite boundaries"
+      ErrMsg "Wrong input! Intervals shoud have 2 finite boundaries"
   fi
 
   local aMinVal=$(min ${a[@]})
@@ -280,88 +282,94 @@ interInt(){
   
 }
 
-getInd(){ 
-  # Function return the index of $1, if element of array $2 equals exactly or contain $1
-  # To search for containing, $1 should be provided with *, for example: peak*
-  local sym=$1
-  shift 
-  local array=("$@")
-  for i in "${!array[@]}"
-  do
-    if [[ "${array[$i]}" == $sym ]]; then
-        printf "$i\n"
-    fi
-  done
-}
+GetIndArray(){ 
+  # Function return the index of $2, if element of array $3-... equals exactly
+  # or contain $1. To search for containing, $1 should be provided with *.
+  # For example: peak*
+  # Input: size of "elements to find", elements, array
+  # Output: array of indecies 
+  # Use: readarray -t ind <<<\
+  #               "$(GetIndArray "{#elem[@]}" "${elem[@]}" "${varsList[@]}")"
 
-delInd(){
-  # Function returns an array $2 without the $1 index (just one, not many)
-  local ind=$1 #index to delete
+  local nElem=${1:-""}
   shift
+  local elem
+  local tmp
+  while (( nElem -- > 0 )) ; do
+    tmp="$1"
+    elem+=( "$tmp" )
+    shift
+  done
   local array=("$@")
 
-  for ((i=0; i<${#array[@]}; i++))
-  do
-    if [ "$i" -ne "$ind" ]; then
-        printf -- "${array[$i]}\n"
-    fi
+  local i
+  local j
+  for i in "${elem[@]}"; do
+    for j in "${!array[@]}";  do
+      if [[ "${array[$j]}" == $i ]]; then
+          printf "$j\n"
+      fi
+    done
   done
 }
 
-readArgsOld(){
-  # Function readArgs() read arguments from the file $1 and substitute values in the code
-  # Example, in the file we have: foo     23
-  # then in the code, where this file sourced and function readArgs is called
-  # "echo $foo" returns 23.
-  #
-  # If the variable is defined before reading file, and in file it is empty,
-  # then default value remains
-  #
-  # Input:
-  #       -argsFile       file with arguments
-  #       -posArgs        possible arguments to search for
-  #
-  # args.list has to be written in a way, that:
-  #       first column = argumentName             second column = argumentValue
-  #
-  # Use: readArgs "$argsFile" "${posArgs[@]}"
+DelIndArray(){
+  # Function returns an array $3-... without the indecies $2 - array
+  # Output: array without indecies
+  # Use: readarray -t varsList <<<\
+  #       "$(DelIndArray "${#scrInd[@]}" "${scrInd[@]}" "${varsList[@]}")"
 
-  ## Prior parameters
-  local argsFile="$1"
-  chkInp "f" "$argsFile" "List of arguments"
+  local nIndDel=${1:-""}
   shift
+  local indDel
+  local tmp
+  while (( nIndDel -- > 0 )) ; do
+    tmp="$1"
+    indDel+=( "$tmp" )
+    shift
+  done
+  local array=("$@")
 
-  local posArgs=("$@")
-  ## Read arguments and corresponding values
-  i=0
-  while read  firstCol restCol #do like that because there might be spaces in names
-  do
-    varsList[$i]="$firstCol" #all variables from the file
-    valsList[$i]="$restCol" #all values of variables from the file
-    ((i++))
-  done < "$argsFile"
-
-  for i in ${posArgs[@]}; do
-    readarray -t ind <<< "$(getInd "$i" "${varsList[@]}")"
-    ind=(${ind[0]}) #take just the first value
-    if [ "$ind" ]; then #if index is not empty              
-        eval "$i=${valsList[$ind]}" #use eval to define: parameter=value
-        exFl=$?
-        if [ $exFl -ne 0 ]; then
-            errMsg "Cant read the parameter: $i=${valsList[$ind]}"
-        fi
-    fi
-    # If index is empty, then no need to do anything, because
-    # bash defines non-existing variable as empty.
-    # Example: if [ $hui11221993 = "" ]; then echo "hui11221993 is empty"; fi
+  local ind=($(echo "${indDel[@]}" "${!array[@]}" |
+                   tr " " "\n" |
+                   sort |
+                   uniq -u))
+  local i
+  for i in "${ind[@]}"; do
+    printf -- "${array[$i]}\n"
   done
 }
 
-readArgs(){
-  # Function readArgs() read arguments from the file $1 according to
+DelElemArray(){
+  # Function returns an array $3,... without the elements $2 - array
+  # Output: array without deleted elements
+  # Use:readarray -t arrayNoElem <<<\
+  #              "$(DelElemArray "{#elem[@]}" "${elem[@]}" "${varsList[@]}")
+  local nElem=${1:-""}
+  shift
+  local elem
+  local tmp
+  while (( nElem -- > 0 )) ; do
+    tmp="$1"
+    elem+=( "$tmp" )
+    shift
+  done
+  local array=("$@")
+
+  readarray -t indToDel <<<\
+            "$(GetIndArray "${#elem[@]}" "${elem[@]}" "${array[@]}")"
+  readarray -t arrayNoElem <<<\
+            "$(DelIndArray "${#indToDel[@]}" "${indToDel[@]}" "${array[@]}")"
+  for i in ${arrayNoElem[@]}; do
+    printf -- "$i\n"
+  done
+}
+
+ReadArgs(){
+  # Function ReadArgs() read arguments from the file $1 according to
   # label ##[ scrLab ]## and substitute values in the code.
   # Example, in the file we have: foo     23
-  # then in the code, where this file sourced and function readArgs is called
+  # then in the code, where this file sourced and function ReadArgs is called
   # "echo $foo" returns 23.
   #
   # If the variable is defined before reading file, and in file it is empty,
@@ -383,11 +391,11 @@ readArgs(){
   #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
   # That is after first column space has to be provided
   #
-  # Use: readArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}" "${posArgs[@]}"
+  # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}" "${posArgs[@]}"
 
   ## Input
   local argsFile="$1"
-  chkExist "f" "$argsFile" "File with arguments"
+  ChkExist "f" "$argsFile" "File with arguments"
   shift
 
   # Get list of labels to read
@@ -402,8 +410,8 @@ readArgs(){
     while (( scrLabNum -- > 0 )) ; do
       #scrLab=$(echo "$1" | tr '[:upper:]' '[:lower:]')
       scrLab="$1"
-      if [[ $(rmSp "$scrLab") != "$scrLab" ]]; then
-          errMsg "Impossible to read arguments for \"$scrLab\".
+      if [[ $(RmSp "$scrLab") != "$scrLab" ]]; then
+          ErrMsg "Impossible to read arguments for \"$scrLab\".
                   Remove spaces: $scrLab"
       fi
 
@@ -416,7 +424,7 @@ readArgs(){
   local posArgNum=${1:-"0"} 
   shift
   if [[ $posArgNum -eq 0 ]]; then
-      errMsg "No arguments to read from $argsFile"
+      ErrMsg "No arguments to read from $argsFile"
   fi
 
   local posArgList
@@ -426,8 +434,8 @@ readArgs(){
   else
     while (( posArgNum -- > 0 )) ; do
       posArg="$1"
-      if [[ $(rmSp "$posArg") != "$posArg" ]]; then
-          errMsg "Possible argument cannot have spaces: $posArg"
+      if [[ $(RmSp "$posArg") != "$posArg" ]]; then
+          ErrMsg "Possible argument cannot have spaces: $posArg"
       fi
 
       posArgList+=( "$posArg" )
@@ -443,7 +451,7 @@ readArgs(){
   shift
 
   if [[ "$isSkipLab" != true && "$isSkipLab" != false ]]; then
-      warnMsg "The value of isSkipLab = $isSkipLab is not recognised.
+      WarnMsg "The value of isSkipLab = $isSkipLab is not recognised.
                Value false is assigned"
   fi
 
@@ -465,8 +473,8 @@ readArgs(){
                  )"
         
         if [[ ${#rawStart[@]} -gt 1 ]]; then
-            rawStart=("$(joinToStr ", " "${rawStart[@]}")")
-            errMsg "Impossible to detect arguments for $scrLab in $argsFile.
+            rawStart=("$(JoinToStr ", " "${rawStart[@]}")")
+            ErrMsg "Impossible to detect arguments for $scrLab in $argsFile.
                    Label: ##[ $scrLab ]## appears several times.
                    Lines: $rawStart"
         fi
@@ -501,8 +509,8 @@ readArgs(){
               if [[ "$isSkipLab" = true ]]; then
                   return "2"
               else
-                rawEnd=("$(joinToStr ", " "${rawEnd[@]}")")
-                errMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
+                rawEnd=("$(JoinToStr ", " "${rawEnd[@]}")")
+                ErrMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
                         other labels exist:
                         $rawEnd"    
               fi
@@ -520,10 +528,10 @@ readArgs(){
     fi
 
     if [[ "$rawStart" -gt "$rawEnd" ]]; then
-        errMsg "No arguments after ##[ $scrLab ]## in $argsFile!"
+        ErrMsg "No arguments after ##[ $scrLab ]## in $argsFile!"
     fi
     
-    echoLineSh
+    EchoLineSh
     if [[ -n "$scrLab" ]]; then
         echo "Reading arguments in \"$scrLab\" section from \"$argsFile\""
     else
@@ -531,7 +539,7 @@ readArgs(){
     fi
     echo "Starting line: $rawStart"
     echo "Ending line: $rawEnd"
-    echoLineSh
+    EchoLineSh
     
     declare -A varsList #map - array, local by default
     
@@ -539,7 +547,8 @@ readArgs(){
     declare -A nRepVars #number of repetiotions of argument
     while read -r firstCol restCol #because there might be spaces in names
     do
-      ((nRepVars[$firstCol]++))
+      nRepVars["$firstCol"]=$((nRepVars["$firstCol"] + 1))
+      #((nRepVars["$firstCol"]++)) #- doesnot work
       varsList["$firstCol"]="$(sed -e "s#[\"$]#\\\&#g" <<< "$restCol")"
     done <<< "$(awk -v rawStart=$rawStart -v rawEnd=$rawEnd\
               'NF > 0 && NR >= rawStart; NR == rawEnd {exit}'\
@@ -549,30 +558,30 @@ readArgs(){
     for i in ${!nRepVars[@]}; do
       if [[ ${nRepVars[$i]} -gt 1 ]]; then
           if [[ "$i" = "$reservArg" ]]; then
-              errMsg "$i - reserved argument and cannot be duplicated"
+              ErrMsg "$i - reserved argument and cannot be duplicated"
           fi
 
-          warnMsg "Argument $i is repeated ${nRepVars[$i]} times.
+          WarnMsg "Argument $i is repeated ${nRepVars[$i]} times.
                    Last value $i = ${varsList[$i]} is recorded."
       fi
     done
 
     # Assign variables
     for i in ${posArgList[@]}; do
-      if [[ -n $(rmSp "${varsList[$i]}") ]]; then
+      if [[ -n $(RmSp "${varsList[$i]}") ]]; then
           eval $i='${varsList[$i]}' #define: parameter=value
           exFl=$?
           if [ $exFl -ne 0 ]; then
-              errMsg "Cannot read the parameter: $i=${valsList[$ind]}"
+              ErrMsg "Cannot read the parameter: $i=${valsList[$ind]}"
           fi
       fi
     done
   done
 }
 
-printArgs(){
+PrintArgs(){
   ## Print arguments for the "current" script
-  ## Use: printArgs "$scriptName" "${posArgs[@]}"
+  ## Use: PrintArgs "$scriptName" "${posArgs[@]}"
   local curScrName=$1
   shift 
 
@@ -585,13 +594,13 @@ printArgs(){
   maxLenArg=$(max ${maxLenArg[@]})
 
   ## Print
-  echoLineSh
-  if [[ -n $(rmSp "$curScrName") ]]; then
+  EchoLineSh
+  if [[ -n $(RmSp "$curScrName") ]]; then
       echo "Arguments for $curScrName:"
   else
     echo "Arguments"
   fi
-  echoLineSh
+  EchoLineSh
   
   local i
   for i in ${posArgs[@]}
@@ -599,7 +608,7 @@ printArgs(){
     eval "printf \"%-$((maxLenArg + 10))s %s \n\"\
                  \"- $i\" \"$"$i"\" "
   done
-  echoLineSh
+  EchoLineSh
 }
 
 mk_dir(){ #Delete. 
@@ -607,8 +616,8 @@ mk_dir(){ #Delete.
   # right way.
 
   local dirName=$1
-  if [[ -z $(rmSp "$dirName") ]]; then
-      errMsg "Input is empty"
+  if [[ -z $(RmSp "$dirName") ]]; then
+      ErrMsg "Input is empty"
   fi
 
   mkdir -p "$dirName"
@@ -616,6 +625,6 @@ mk_dir(){ #Delete.
   if [ $exFl = 0 ]; then
       echo "$dirName is created"
   else
-    errMsg "Error: $dirName not created"
+    ErrMsg "Error: $dirName not created"
   fi
 }

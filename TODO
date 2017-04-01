@@ -14,7 +14,7 @@
     That is: a lot of possible spaces before, inside and after, but not
     in the name of the script.
     Possible solution: [\s]*##\[[\s]*[^\S]*[\s]*\]##[\s]*
-    Problem that awk does not know \S and \s
+    Problem that awk does not know \S and \s . https://regex101.com
 
 
 

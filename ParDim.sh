@@ -31,31 +31,30 @@ source "$scriptsPath"/funcList.sh
 curScrName=${0##*/} #delete all before last backSlash
 #curScrName=${curScrName%.*}
 
-echoLineBold
+EchoLineBold
 echo "[Start] $curScrName"
 
 
 ## Prior parameters
 argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
 
-coreTask=("download" "preprocess")
+coreTask=("Download" "Preprocess")
 coreTaskScript=("$scriptsPath/boostDownload.sh"
                 "$scriptsPath/makePreprocessDag.sh")
-coreTaskStage=("false" "false") #implement or not
+isCoreTask=("false" "false") #implement or not
 
 integrTask=("allignment" "aquas")
 integrTaskScript=("$scriptsPath/makeAlignmentDag.sh"
                   "$scriptsPath/makeAquasDag.sh")
 # Stages of tasks have to be presented as intervals with 2 bounds
-integrTaskStage=($(mapStage "toTag")    $(mapStage "toTag")
-                 $(mapStage "pseudo")   $(mapStage "idroverlap"))
+integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
+                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
 
 # [Dev] Check that integrTaskStage set ok
-if [ -n "$(getInd "-1" ${integrTaskStage[@]})" ]; then
-    # errMsg "[dev] wrong input of taskStage"
-    echo "[dev] wrong input of taskStage"
+if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
+    # ErrMsg "[dev] wrong input of taskStage"
+    WarnMsg "[dev] wrong input of taskStage"
 fi
-
 
 ######## This part is important, need to move later.
 ######## Need to define core and integrated tasks first
@@ -66,10 +65,11 @@ taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
 for i in "${task[@]}"; do
   taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
   taskArgsLabs=("${taskArgsLabs[@]}"
-               "$(joinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
+               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
 done
 
 ## Detect executable tasks from the file: core and integrated
+
 # Detect all possible labels of scritps based on pattern:
 # ##[scrLab]## - Case sensetive. Spaces are not important at all.
 readarray -t taskPos <<<\
@@ -91,26 +91,39 @@ if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
                        tr " " "\n" |
                        sort |
                        uniq -u))
-    taskPosDupl=("$(joinToStr ", " "${taskPosDupl[@]}")")
-    errMsg "Duplicates of tasks are impossible.
+    taskPosDupl=("$(JoinToStr ", " "${taskPosDupl[@]}")")
+    ErrMsg "Duplicates of tasks are impossible.
             Followings tasks are duplicated:
             ${taskPosDupl[@]}"
 fi
-
 echo "Possible tasks in order: ${taskPos[@]}"
-exit 1
+
+
 ## Decision to use coreTask
 for i in ${!coreTask[@]}; do
   execute=false
-  readArgs "$argsFile" 1 "${coreTask[$i]}" execute  > /dev/null
+  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute" "execute"  #> /dev/null
   
   if [[ "$execute" != true && "$execute" != false ]]; then
-      warnMsg "The value of execute = $execute is not recognised.
+      WarnMsg "The value of execute = $execute is not recognised.
               Core task \"${coreTask[$i]}\" will not be executed"
   else
-    coreTaskStage[$i]="$execute"
+    isCoreTask[$i]="$execute"
   fi
 done
+
+if [[ -n $(GetIndArray 1 "true" "${isCoreTask[@]}") ]]; then
+       WarnMsg "Following tasks are reserved for system:
+               $(JoinToStr ", " "${coreTask[@]}")
+               You cannot use them for your scritps."
+fi
+
+# Need to delete core task from tasPos. 
+
+
+readarray -t <<< $(DelElemArray 
+exit 1
+exit 1
 
 
 ## Input and default values
@@ -126,50 +139,50 @@ posArgs=("inpPath"  #[R] path for: input data; output of download task
 jobsDir=$(mktemp -duq dagTestXXXX)
 mainJobsFile="$jobsDir/pipelineMain.dag" #dag description of the whole pipeline
 
-readArgs "$argsFile" 1 "$curScrName" "${posArgs[@]}"
-printArgs "$curScrName" "argsFile" "${posArgs[@]}"
+ReadArgs "$argsFile" 1 "$curScrName" "${posArgs[@]}"
+PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
 
-firstStage=$(mapStage "$firstStage")
-lastStage=$(mapStage "$lastStage")
+firstStage=$(MapStage "$firstStage")
+lastStage=$(MapStage "$lastStage")
 
 
 ## Initial checking
 # Stages
-chkStages "$firstStage" "$lastStage"
+ChkStages "$firstStage" "$lastStage"
 
 if [[ "$firstStage" -eq 0 &&  "$lastStage" -eq 0 &&
-    "${coreTaskStage[0]}" = false && "${coreTaskStage[1]}" = false ]]; then
-    errMsg "No stages or core tasks are selected for the pipeline."
+    "${isCoreTask[0]}" = false && "${isCoreTask[1]}" = false ]]; then
+    ErrMsg "No stages or core tasks are selected for the pipeline."
 fi
 
 # Arguments of main (THIS) script
 if [[ !("$firstStage" -eq 0 &&
             "$lastStage" -eq 0 &&
-            "${coreTaskStage[1]}" = false) ]]; then
+            "${isCoreTask[1]}" = false) ]]; then
     # Case when we have some other parts except downloading
-    chkAvailToWrite "outPath"
+    ChkAvailToWrite "outPath"
 
     if [[ -z "$selectJobsTabPath" ]]; then
-        chkExist d "$inpPath" "inpPath: $inpPath"
+        ChkExist d "$inpPath" "inpPath: $inpPath"
 
         selectJobsTabPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
         echo "[dev] less $selectJobsTabPath"
-        if [[ "${coreTaskStage[0]}" = false ]]; then
+        if [[ "${isCoreTask[0]}" = false ]]; then
             # No downloading => create file
             ls -d "$inpPath/"* > "$selectJobsTabPath" 
         fi
     else
-      chkExist f "$selectJobsTabPath"\
+      ChkExist f "$selectJobsTabPath"\
                "List of selected directories: $selectJobsTabPath"
       while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-	chkExist d "$dirPath" "selectJobsTabPath: $dirPath"
+	ChkExist d "$dirPath" "selectJobsTabPath: $dirPath"
       done < "$selectJobsTabPath"
     fi
 fi
 
-if [[ "${coreTaskStage[0]}" = true ]]; then
+if [[ "${isCoreTask[0]}" = true ]]; then
     # Downloading
-    chkAvailToWrite "inpPath"
+    ChkAvailToWrite "inpPath"
 fi
 
 echo "Creating temporary folder:  $jobsDir ..."
@@ -193,7 +206,7 @@ argsCon=("\$(dagScript)"  #variable -script name
          "$scriptsPath"
          "$jobsDir"
          "${selectJobsTabPath##*/}")
-argsCon=$(joinToStr "\' \'" ${argsCon[@]})
+argsCon=$(JoinToStr "\' \'" ${argsCon[@]})
 # Variables have to be specified in $mainJobsFile (main dag file) using VARS.
 # It is important to pass $scriptsPath, since new condor jobs
 # (created on executed machine and returned back) must have executable file
@@ -204,7 +217,7 @@ transFilesCon=("$scriptsPath/funcList.sh"
                "\$(dagScript)"
                "$homePath/$argsFile"
                "$selectJobsTabPath") #transfer files
-transFilesCon=("$(joinToStr ", " ${transFilesCon[@]})")
+transFilesCon=("$(JoinToStr ", " ${transFilesCon[@]})")
 
 bash "$scriptsPath"/makeCon.sh "$conDagMaker" "$conOut"\
      "$scriptsPath/exeMultiDag.sh" "$argsCon" "$transFilesCon" "1" "1" "1"
@@ -213,19 +226,19 @@ bash "$scriptsPath"/makeCon.sh "$conDagMaker" "$conOut"\
 ## DAG file, which assign tasks in a right order
 
 # [Start] Print the file description - Head
-echoLineBoldSh
+EchoLineBoldSh
 echo "[Start] Creating $mainJobsFile" 
 
-printfLine > "$mainJobsFile"
+PrintfLine > "$mainJobsFile"
 printf "# [Start] Description of $mainJobsFile\n" >> "$mainJobsFile"
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 printf "# Input data path: $inpPath\n" >> "$mainJobsFile"
 printf "# Output data path: $outPath\n" >> "$mainJobsFile"
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 printf "# This file manages the order of parts in the pipeline\n" >>\
        "$mainJobsFile"
 printf "# \n" >> "$mainJobsFile"
@@ -235,10 +248,10 @@ do
   printf "#\t$((i+1)). ${taskName[$i]}\t\t${taskScript[$i]}\n" >>\
          "$mainJobsFile"
 done
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 
 printf "CONFIG $scriptsPath/dag.config\n" >> "$mainJobsFile"
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 # [End] Print the file description - Head
 
 # [Start] Print the jobs section - Stages
@@ -285,7 +298,7 @@ do
 
           exFl=$?
           if [[ $exFl -ne 0 ]]; then
-              errMsg "File \"${taskDag[$i]}\" was not generated by
+              ErrMsg "File \"${taskDag[$i]}\" was not generated by
                       ${taskScript[$i]##*/}"
           else
             isFT="false" #not a first stage anymore
@@ -293,9 +306,9 @@ do
       else
         jobId="${taskName[$i]}"
         # Parent Child Dependency 
-        if [[ -n "$(rmSp $lastTask)" ]]; then
+        if [[ -n "$(RmSp $lastTask)" ]]; then
             printf "PARENT $lastTask CHILD $jobId\n" >> "$mainJobsFile"
-            printfLineSh >> "$mainJobsFile"
+            PrintfLineSh >> "$mainJobsFile"
         fi
         # Create list of analysed folders after download
         if [[ "$lastTask" = "${taskName[0]}Dag" ]]; then #downloading 
@@ -327,10 +340,10 @@ do
       fi
 
       # Dag part corresponding to the stage, if it is not empty
-      if [[ -n "$(rmSp ${taskDag[$i]})" ]]; then
+      if [[ -n "$(RmSp ${taskDag[$i]})" ]]; then
           jobId="${taskName[$i]}Dag"
           # Parent Child Dependency
-          if [[ -n "$(rmSp $lastTask)" ]]; then #i.e. we had a task before
+          if [[ -n "$(RmSp $lastTask)" ]]; then #i.e. we had a task before
               printf "PARENT $lastTask CHILD $jobId\n\n" >> "$mainJobsFile"
           fi
 
@@ -347,16 +360,16 @@ done
 # [End] Print the jobs section - Stages
 
 # End of file
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 printf "# [End]  Description of $mainJobsFile\n" >> "$mainJobsFile"
-printfLine >> "$mainJobsFile"
+PrintfLine >> "$mainJobsFile"
 
 echo "[End]  Creating $mainJobsFile"
-echoLineBoldSh
+EchoLineBoldSh
 
 ## Submit mainDAG.dag
 if [[ "$isFT" = true ]]; then
-    errMsg "0 jobs are queued by $curScrName"
+    ErrMsg "0 jobs are queued by $curScrName"
 else
   #condor_submit_dag -f $mainJobsFile
   echo "$mainJobsFile was submitted!"
@@ -365,5 +378,5 @@ fi
 
 ## End
 echo "[End]  $curScrName"
-echoLineBold
+EchoLineBold
 exit 0
