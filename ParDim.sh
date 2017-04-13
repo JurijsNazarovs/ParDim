@@ -43,9 +43,9 @@ coreTaskScript=("$scriptsPath/boostDownload.sh"
                 "$scriptsPath/makePreprocessDag.sh")
 isCoreTask=("false" "false") #implement or not
 
-integrTask=("allignment" "aquas")
-integrTaskScript=("$scriptsPath/makeAlignmentDag.sh"
-                  "$scriptsPath/makeAquasDag.sh")
+#integrTask=("allignment" "aquas")
+#integrTaskScript=("$scriptsPath/makeAlignmentDag.sh"
+#                  "$scriptsPath/makeAquasDag.sh")
 # Stages of tasks have to be presented as intervals with 2 bounds
 integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
                  $(MapStage "pseudo")   $(MapStage "idroverlap"))
@@ -56,8 +56,11 @@ if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
     WarnMsg "[dev] wrong input of taskStage"
 fi
 
+
 ######## This part is important, need to move later.
 ######## Need to define core and integrated tasks first
+
+## Detect executable tasks from the file: core and integrated
 task=("${coreTask[@]}" "${integrTask[@]}")
 taskScript=("${coreTaskScript[@]}" "${integrTaskScript[@]}")
 
@@ -67,8 +70,6 @@ for i in "${task[@]}"; do
   taskArgsLabs=("${taskArgsLabs[@]}"
                "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
 done
-
-## Detect executable tasks from the file: core and integrated
 
 # Detect all possible labels of scritps based on pattern:
 # ##[scrLab]## - Case sensetive. Spaces are not important at all.
@@ -102,7 +103,8 @@ echo "Possible tasks in order: ${taskPos[@]}"
 ## Decision to use coreTask
 for i in ${!coreTask[@]}; do
   execute=false
-  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute" "execute"  #> /dev/null
+  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute" "execute" "true" \
+          # > /dev/null
   
   if [[ "$execute" != true && "$execute" != false ]]; then
       WarnMsg "The value of execute = $execute is not recognised.
@@ -113,15 +115,18 @@ for i in ${!coreTask[@]}; do
 done
 
 if [[ -n $(GetIndArray 1 "true" "${isCoreTask[@]}") ]]; then
-       WarnMsg "Following tasks are reserved for system:
+       WarnMsg "Following tasks are reserved for the system:
                $(JoinToStr ", " "${coreTask[@]}")
-               You cannot use them for your scritps."
+               You cannot use them for your scripts."
 fi
 
-# Need to delete core task from tasPos. 
 
+## Decision to use integrTask
+readarray -t taskPos <<< $(DelElemArray "$((${#coreTask[@]} + 1))"\
+                                        "${coreTask[@]}" "$curScrName"\
+                                        "${taskPos[@]}")
 
-readarray -t <<< $(DelElemArray 
+echo "${taskPos[@]}"
 exit 1
 exit 1
 

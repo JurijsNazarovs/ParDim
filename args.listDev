@@ -1,4 +1,4 @@
-##[ parDim.sh ]##
+##[ ParDim.sh ]##
 #tabPath                 tables/encode3GRCh38.csv2
 inpPath                 /mnt/gluster/nazarovs/tmp/testData
 outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam

@@ -385,7 +385,8 @@ ReadArgs(){
   #       -posArgNum  number of arguments to read
   #       -posArgList possible arguments to search for
   #       -reservArg  reserved argument which can't be duplicated
-  #       -isSkipLab  true = no error for missed labels
+  #       -isSkipLabErr true = no error for missed labels, if other labels
+  #                   exist. No arguments are read.
   #
   # args.list has to be written in a way:
   #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
@@ -447,16 +448,17 @@ ReadArgs(){
   local reservArg=${1:-""}
   shift
 
-  local isSkipLab=${1:-"false"}
+  local 	isSkipLabErr=${1:-"false"}
   shift
 
-  if [[ "$isSkipLab" != true && "$isSkipLab" != false ]]; then
-      WarnMsg "The value of isSkipLab = $isSkipLab is not recognised.
+  if [[ "$isSkipLabErr" != true && "$isSkipLabErr" != false ]]; then
+      WarnMsg "The value of isSkipLabErr = $isSkipLabErr is not recognised.
                Value false is assigned"
   fi
 
 
   # Detect start and end positions to read between and read arguments
+  local scrLab
   for scrLab in "${scrLabList[@]}"; do
     local rawStart="" #will read argFile from here
     local rawEnd="" #until here
@@ -506,7 +508,7 @@ ReadArgs(){
                      )"
           
           if [[ -n "$rawEnd" ]]; then
-              if [[ "$isSkipLab" = true ]]; then
+              if [[ "$isSkipLabErr" = true ]]; then
                   return "2"
               else
                 rawEnd=("$(JoinToStr ", " "${rawEnd[@]}")")
@@ -539,7 +541,6 @@ ReadArgs(){
     fi
     echo "Starting line: $rawStart"
     echo "Ending line: $rawEnd"
-    EchoLineSh
     
     declare -A varsList #map - array, local by default
     
@@ -560,7 +561,7 @@ ReadArgs(){
           if [[ "$i" = "$reservArg" ]]; then
               ErrMsg "$i - reserved argument and cannot be duplicated"
           fi
-
+          
           WarnMsg "Argument $i is repeated ${nRepVars[$i]} times.
                    Last value $i = ${varsList[$i]} is recorded."
       fi
@@ -577,6 +578,7 @@ ReadArgs(){
       fi
     done
   done
+  EchoLineSh
 }
 
 PrintArgs(){
