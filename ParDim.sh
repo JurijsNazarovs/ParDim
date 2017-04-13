@@ -87,7 +87,7 @@ readarray -t taskPos <<<\
 taskPosNoDupl=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq))
 if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
     # Just values which are repeated once
-    taskPosUniq=($(echo "${taskPos[@]}" | tr " " "\n" | uniq -u))
+    taskPosUniq=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq -u))
     taskPosDupl=($(echo "${taskPosNoDupl[@]}" "${taskPosUniq[@]}" |
                        tr " " "\n" |
                        sort |
@@ -95,7 +95,7 @@ if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
     taskPosDupl=("$(JoinToStr ", " "${taskPosDupl[@]}")")
     ErrMsg "Duplicates of tasks are impossible.
             Followings tasks are duplicated:
-            ${taskPosDupl[@]}"
+            $taskPosDupl"
 fi
 echo "Possible tasks in order: ${taskPos[@]}"
 
@@ -122,11 +122,30 @@ fi
 
 
 ## Decision to use integrTask
-readarray -t taskPos <<< $(DelElemArray "$((${#coreTask[@]} + 1))"\
+readarray -t taskPos <<< "$(DelElemArray "$((${#coreTask[@]} + 1))"\
                                         "${coreTask[@]}" "$curScrName"\
-                                        "${taskPos[@]}")
+                                        "${taskPos[@]}")"
 
-echo "${taskPos[@]}"
+echo "Possible integrTask: ${taskPos[@]}"
+
+nIntegrTask=0 #helps to keep the order of integrated tasks
+for i in "${taskPos[@]}"; do
+  execute=false
+  script=""
+  ReadArgs "$argsFile" 1 "$i" 2 "execute" "script" "execute"
+  if [[ "$execute" = true ]]; then
+      ChkExist f "$script" "Script for $i"
+      if [[ "$curScrName" -ef "$script" ]]; then
+          ErrMsg "$curScrName cannot be a script for $i,
+                 since it is the main pipeline script"
+      fi
+
+      integrTask["$nIntegrTask"]="$i"
+      integrTaskScript["nIntegrTask"]="$script"
+      ((nIntegrTask ++))
+  fi
+done
+
 exit 1
 exit 1
 

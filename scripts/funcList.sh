@@ -548,9 +548,11 @@ ReadArgs(){
     declare -A nRepVars #number of repetiotions of argument
     while read -r firstCol restCol #because there might be spaces in names
     do
-      nRepVars["$firstCol"]=$((nRepVars["$firstCol"] + 1))
-      #((nRepVars["$firstCol"]++)) #- doesnot work
-      varsList["$firstCol"]="$(sed -e "s#[\"$]#\\\&#g" <<< "$restCol")"
+      if [[ -n $(RmSp "$firstCol") ]]; then
+          nRepVars["$firstCol"]=$((nRepVars["$firstCol"] + 1))
+          #((nRepVars["$firstCol"]++)) #- doesnot work
+          varsList["$firstCol"]="$(sed -e "s#[\"$]#\\\&#g" <<< "$restCol")"
+      fi
     done <<< "$(awk -v rawStart=$rawStart -v rawEnd=$rawEnd\
               'NF > 0 && NR >= rawStart; NR == rawEnd {exit}'\
               "$argsFile")"

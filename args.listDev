@@ -19,24 +19,28 @@ nDotsExt                1
 
 ##[ Preprocess ]##
 
-dfss###[ Preprocess ]##
+######[ Preprocess ]##
 execute                 true
 
                         pizda
 pizda                   pider
 
-###[ Aquas ]##
+##[ Aquas ]##
+execute                 true
+script                  scripts/makeAquasDag.sh 
 specName		hg19
 specList		species.list
 specTar		        species.tar.gz
 coresNum		16
 trueRep		        false
 
-
-## [ Aquas ] ##
+### [ Aquas ] ##
+trueRep		        false
 
 
 ##[ Allignment ]##
+execute                 true
+script                  /home/nazarovs/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
 bwaIndexName		GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 bwaSoftwareLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/bwa.tar.gz
