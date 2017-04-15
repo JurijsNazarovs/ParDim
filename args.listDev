@@ -8,7 +8,7 @@ jobsDir		        dagRuns/test
 selectJobsTabPath       
 
 ##[ Download ]##
-execute                 false
+execute                 true
 tabDelim		,
 tabDelimJoin            ;
 tabDirCol               1
@@ -20,14 +20,15 @@ nDotsExt                1
 ##[ Preprocess ]##
 
 ######[ Preprocess ]##
-execute                 true
+execute                 false
 
                         pizda
 pizda                   pider
 
 ##[ Aquas ]##
 execute                 true
-script                  scripts/makeAquasDag.sh 
+script                  scripts/makeAquasDag.sh
+script                  scripts/makeAquasDag.sh
 specName		hg19
 specList		species.list
 specTar		        species.tar.gz

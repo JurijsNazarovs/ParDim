@@ -58,14 +58,13 @@ WarnMsg(){
   # It is done to make code beautiful, so that in code I can put tabs.
   msg=${1:-"Default message about warning"}
 
-  echo "*******************************************"
-  #EchoLineSh
-  printf "WARNING!\n"
+  echo "*******************************************"  >> /dev/stderr
+
+  local strTmp="WARNING!\n$msg\n"
   # Replace \n[\t]+ with \n
-  sed -e ':a;N;$!ba;s/\n[ \t]\+/\n/g' <<<  "$msg"
-  echo "*******************************************"
-  #EchoLineSh
-  #echo "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-"
+  printf "$strTmp" | sed -e ':a;N;$!ba;s/\n[ \t]\+/\n/g' >> /dev/stderr
+  
+  echo "*******************************************"  >> /dev/stderr
 }
 
 ErrMsg(){
@@ -266,13 +265,13 @@ InterInt(){
       ErrMsg "Wrong input! Intervals shoud have 2 finite boundaries"
   fi
 
-  local aMinVal=$(min ${a[@]})
-  local aMaxVal=$(max ${a[@]})
-  local bMinVal=$(min ${b[@]})
-  local bMaxVal=$(max ${b[@]})
+  local aMinVal=$(Min ${a[@]})
+  local aMaxVal=$(Max ${a[@]})
+  local bMinVal=$(Min ${b[@]})
+  local bMaxVal=$(Max ${b[@]})
 
-  local maxMinVal=$(max $aMinVal $bMinVal)
-  local minMaxVal=$(min $aMaxVal $bMaxVal)
+  local maxMinVal=$(Max $aMinVal $bMinVal)
+  local minMaxVal=$(Min $aMaxVal $bMaxVal)
   
   if [ $maxMinVal -le $minMaxVal ]; then
       echo 1
@@ -390,7 +389,7 @@ ReadArgs(){
   #
   # args.list has to be written in a way:
   #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
-  # That is after first column space has to be provided
+  # That is after first column space has to be provided!
   #
   # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}" "${posArgs[@]}"
 
@@ -535,48 +534,60 @@ ReadArgs(){
     
     EchoLineSh
     if [[ -n "$scrLab" ]]; then
-        echo "Reading arguments in \"$scrLab\" section from \"$argsFile\""
+        echo "Reading arguments in $scrLab section from $argsFile"
     else
-      echo "Reading arguments from \"$argsFile\""
+      echo "Reading arguments from $argsFile"
     fi
     echo "Starting line: $rawStart"
-    echo "Ending line: $rawEnd"
+    echo "Ending line:   $rawEnd"
     
     declare -A varsList #map - array, local by default
     
     # Read files between rawStart and rawEnd lines, skipping empty raws
     declare -A nRepVars #number of repetiotions of argument
+    local firstCol
+    local restCol
+    
     while read -r firstCol restCol #because there might be spaces in names
     do
       if [[ -n $(RmSp "$firstCol") ]]; then
           nRepVars["$firstCol"]=$((nRepVars["$firstCol"] + 1))
-          #((nRepVars["$firstCol"]++)) #- doesnot work
+          #((nRepVars["$firstCol"]++)) #- does not work
           varsList["$firstCol"]="$(sed -e "s#[\"$]#\\\&#g" <<< "$restCol")"
       fi
     done <<< "$(awk -v rawStart=$rawStart -v rawEnd=$rawEnd\
               'NF > 0 && NR >= rawStart; NR == rawEnd {exit}'\
               "$argsFile")"
-    
-    local i
-    for i in ${!nRepVars[@]}; do
-      if [[ ${nRepVars[$i]} -gt 1 ]]; then
-          if [[ "$i" = "$reservArg" ]]; then
-              ErrMsg "$i - reserved argument and cannot be duplicated"
-          fi
-          
-          WarnMsg "Argument $i is repeated ${nRepVars[$i]} times.
-                   Last value $i = ${varsList[$i]} is recorded."
-      fi
-    done
 
     # Assign variables
+    local strTmp
+    if [[ -n "$scrLab" ]]; then
+        strTmp="Section $scrLab in $argsFile:\n"
+    fi
+    
+    local i
     for i in ${posArgList[@]}; do
+      # Checking
+      if [[ ${nRepVars[$i]} -gt 1 ]]; then
+          if [[ "$i" = "$reservArg" ]]; then
+              ErrMsg "${strTmp}Argument $i is repeated ${nRepVars[$i]} times.
+                     $i - reserved argument and cannot be duplicated."
+          fi
+          
+          WarnMsg "${strTmp}Argument $i is repeated ${nRepVars[$i]} times.
+                       Last value $i = ${varsList[$i]} is recorded."
+      fi
+      
+      # If assigned value is empty, then do not assign anything
       if [[ -n $(RmSp "${varsList[$i]}") ]]; then
           eval $i='${varsList[$i]}' #define: parameter=value
           exFl=$?
           if [ $exFl -ne 0 ]; then
-              ErrMsg "Cannot read the parameter: $i=${valsList[$ind]}"
+              ErrMsg "${strTmp}Cannot read the parameter: $i=${valsList[$ind]}"
           fi
+      else
+        WarnMsg "${strTmp}The value of argument $i is empty.
+                 If there is a default value, it is assigned."
       fi
     done
   done
@@ -595,7 +606,7 @@ PrintArgs(){
   for i in ${!posArgs[@]};  do
     maxLenArg=(${maxLenArg[@]} ${#posArgs[$i]})
   done
-  maxLenArg=$(max ${maxLenArg[@]})
+  maxLenArg=$(Max ${maxLenArg[@]})
 
   ## Print
   EchoLineSh

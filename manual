@@ -35,3 +35,23 @@ Checking points in the Main script:
       
    c) if selectJobsTabPath, then every path in list exists also from b the same
 2. Download: availability to write in inpPath.
+
+
+3. ReadArgs
+## Rows identification
+It search arguments in range of lines specified by scrLabList = titles for
+sections.
+Several possible behavior:
+  1. no titles provided => search for all lines
+  2. titles provided:
+     a. error if duplication of titles in the file
+     b. if titile is not found in the file but other exist
+        b1. isSkipLabErr = true => return 2, no ErrMsg
+        b2. isSkipLabErr = false => Error msg
+
+## Assignment of values
+ - If there are several assignments, then the last one is assigned.
+ - If after first column there is no values, then default one will be assigned.
+ - reservArg cant be repeated >1 time.
+
+

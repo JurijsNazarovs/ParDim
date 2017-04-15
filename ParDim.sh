@@ -33,45 +33,14 @@ curScrName=${0##*/} #delete all before last backSlash
 
 EchoLineBold
 echo "[Start] $curScrName"
-
-
-## Prior parameters
 argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
 
+## Detect structure of the pipiline
 coreTask=("Download" "Preprocess")
 coreTaskScript=("$scriptsPath/boostDownload.sh"
                 "$scriptsPath/makePreprocessDag.sh")
-isCoreTask=("false" "false") #implement or not
 
-#integrTask=("allignment" "aquas")
-#integrTaskScript=("$scriptsPath/makeAlignmentDag.sh"
-#                  "$scriptsPath/makeAquasDag.sh")
-# Stages of tasks have to be presented as intervals with 2 bounds
-integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
-                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
-
-# [Dev] Check that integrTaskStage set ok
-if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
-    # ErrMsg "[dev] wrong input of taskStage"
-    WarnMsg "[dev] wrong input of taskStage"
-fi
-
-
-######## This part is important, need to move later.
-######## Need to define core and integrated tasks first
-
-## Detect executable tasks from the file: core and integrated
-task=("${coreTask[@]}" "${integrTask[@]}")
-taskScript=("${coreTaskScript[@]}" "${integrTaskScript[@]}")
-
-taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
-for i in "${task[@]}"; do
-  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
-  taskArgsLabs=("${taskArgsLabs[@]}"
-               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
-done
-
-# Detect all possible labels of scritps based on pattern:
+# Detect all possible labels of integrated scritps based on the pattern:
 # ##[scrLab]## - Case sensetive. Spaces are not important at all.
 readarray -t taskPos <<<\
           "$(awk -v pattern="^(##)\\\[.*\\\](##)$"\
@@ -97,57 +66,125 @@ if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
             Followings tasks are duplicated:
             $taskPosDupl"
 fi
-echo "Possible tasks in order: ${taskPos[@]}"
 
-
-## Decision to use coreTask
+# Detect coreTask
+whichCoreTask=() #keep indecies of coreTask to execute
 for i in ${!coreTask[@]}; do
   execute=false
-  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute" "execute" "true" \
-          # > /dev/null
+  script=""
+  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 2 "execute" "script"\
+           "execute" "true"  > /dev/null
   
-  if [[ "$execute" != true && "$execute" != false ]]; then
-      WarnMsg "The value of execute = $execute is not recognised.
-              Core task \"${coreTask[$i]}\" will not be executed"
+  if [[ "$execute" = true ]]; then
+      whichCoreTask=(${whichCoreTask[@]} "$i")
+      
+      if [[ -n "$script" ]]; then
+        coreTaskScript["$i"]="$script"
+      fi
   else
-    isCoreTask[$i]="$execute"
+    if [[ "$execute" != false ]]; then
+        WarnMsg "The value of execute = $execute is not recognised.
+                 Core task \"${coreTask[$i]}\" will not be executed"
+    fi
   fi
 done
 
-if [[ -n $(GetIndArray 1 "true" "${isCoreTask[@]}") ]]; then
+if [[ ${#whichCoreTask[@]} != 0 ]]; then
        WarnMsg "Following tasks are reserved for the system:
                $(JoinToStr ", " "${coreTask[@]}")
                You cannot use them for your scripts."
 fi
 
-
-## Decision to use integrTask
+# Detect integrTask
 readarray -t taskPos <<< "$(DelElemArray "$((${#coreTask[@]} + 1))"\
-                                        "${coreTask[@]}" "$curScrName"\
-                                        "${taskPos[@]}")"
-
-echo "Possible integrTask: ${taskPos[@]}"
-
+                                         "${coreTask[@]}" "$curScrName"\
+                                         "${taskPos[@]}")"
 nIntegrTask=0 #helps to keep the order of integrated tasks
 for i in "${taskPos[@]}"; do
   execute=false
   script=""
-  ReadArgs "$argsFile" 1 "$i" 2 "execute" "script" "execute"
+  ReadArgs "$argsFile" 1 "$i" 2 "execute" "script" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
-      ChkExist f "$script" "Script for $i"
-      if [[ "$curScrName" -ef "$script" ]]; then
-          ErrMsg "$curScrName cannot be a script for $i,
-                 since it is the main pipeline script"
-      fi
-
       integrTask["$nIntegrTask"]="$i"
-      integrTaskScript["nIntegrTask"]="$script"
+      integrTaskScript["$nIntegrTask"]="$script"
       ((nIntegrTask ++))
   fi
 done
 
+# Form final tasks to execute
+task=()
+taskScript=()
+for i in "${whichCoreTask[@]}"; do
+  task=("${task[@]}" "${coreTask[$i]}")
+  taskScript=("${taskScript[@]}" "${coreTaskScript[$i]}")
+done
+task=("${task[@]}" "${integrTask[@]}")
+taskScript=("${taskScript[@]}" "${integrTaskScript[@]}")
+
+if [[ ${#task[@]} -eq 0 ]]; then
+    ErrMsg "No tasks are assigned.
+            Execution is halted"
+fi
+
+# Checking assigned scripts
+for i in "${!task[@]}"; do
+  #taskScript[$i]="$(readlink -f ${taskScript[$i]})" #whole path
+  ChkExist f "$script" "Script for ${task[$i]}"
+  if [[ "$curScrName" -ef "$script" ]]; then
+      ErrMsg "$curScrName cannot be a script for $i,
+              since it is the main pipeline script"
+  fi
+done
+
+# Print pipeline structure - Need to move it after stages are done.
+maxLenStr=0
+#task=("${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}")
+nZeros=${#task[@]} #number of zeros to make an order
+nZeros=${#nZeros}
+for i in "${task[@]}";  do
+  maxLenStr=$(Max $maxLenStr ${#i})
+done
+
+EchoLineSh
+echo "Pipeline structure in order:"
+echo ""
+
+for i in "${!task[@]}"
+do
+  printf "%0${nZeros}d. %-$((maxLenStr + nZeros ))s %s\n"\
+         "$((i + 1))"\
+         "${task[$i]}"\
+         "$(readlink -f ${taskScript[$i]})"
+done
+EchoLineSh
+
 exit 1
+
+taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
+for i in "${task[@]}"; do
+  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
+  taskArgsLabs=("${taskArgsLabs[@]}"
+               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
+done
+
+integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
+                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
+
+# [Dev] Check that integrTaskStage set ok
+if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
+    # ErrMsg "[dev] wrong input of taskStage"
+    WarnMsg "[dev] wrong input of taskStage"
+fi
+
 exit 1
+
+
+
+
+
+
+
+
 
 
 ## Input and default values
@@ -174,6 +211,8 @@ lastStage=$(MapStage "$lastStage")
 # Stages
 ChkStages "$firstStage" "$lastStage"
 
+
+# There is no isCoreTask anymore
 if [[ "$firstStage" -eq 0 &&  "$lastStage" -eq 0 &&
     "${isCoreTask[0]}" = false && "${isCoreTask[1]}" = false ]]; then
     ErrMsg "No stages or core tasks are selected for the pipeline."
