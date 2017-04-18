@@ -391,7 +391,8 @@ ReadArgs(){
   #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
   # That is after first column space has to be provided!
   #
-  # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}" "${posArgs[@]}"
+  # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}"\
+  #               "$posArgsNum" "${posArgs[@]}" "$reservArg" "$isSkipLab"
 
   ## Input
   local argsFile="$1"
@@ -447,7 +448,7 @@ ReadArgs(){
   local reservArg=${1:-""}
   shift
 
-  local 	isSkipLabErr=${1:-"false"}
+  local isSkipLabErr=${1:-"false"}
   shift
 
   if [[ "$isSkipLabErr" != true && "$isSkipLabErr" != false ]]; then
@@ -568,14 +569,20 @@ ReadArgs(){
     local i
     for i in ${posArgList[@]}; do
       # Checking
+      if [[ ${nRepVars[$i]} -eq 0 ]]; then
+          # Trying to read an argument which is not in args.file
+          # WarnMsg "No mention of $i"
+          continue
+      fi
+
       if [[ ${nRepVars[$i]} -gt 1 ]]; then
           if [[ "$i" = "$reservArg" ]]; then
               ErrMsg "${strTmp}Argument $i is repeated ${nRepVars[$i]} times.
-                     $i - reserved argument and cannot be duplicated."
+                      $i - reserved argument and cannot be duplicated."
           fi
           
           WarnMsg "${strTmp}Argument $i is repeated ${nRepVars[$i]} times.
-                       Last value $i = ${varsList[$i]} is recorded."
+                   Last value $i = ${varsList[$i]} is recorded."
       fi
       
       # If assigned value is empty, then do not assign anything
@@ -586,8 +593,14 @@ ReadArgs(){
               ErrMsg "${strTmp}Cannot read the parameter: $i=${valsList[$ind]}"
           fi
       else
-        WarnMsg "${strTmp}The value of argument $i is empty.
-                 If there is a default value, it is assigned."
+        local defValue
+        eval defValue="\$$i"
+        if [[ -n $(RmSp "$defValue") ]]; then
+            WarnMsg "${strTmp}The value of argument $i is empty.
+                     Default value $i = $defValue is assigned."
+        else
+          WarnMsg "${strTmp}The value of argument $i is empty."
+        fi
       fi
     done
   done
