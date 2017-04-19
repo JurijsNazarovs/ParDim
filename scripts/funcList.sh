@@ -282,9 +282,9 @@ InterInt(){
 }
 
 GetIndArray(){ 
-  # Function return the index of $2, if element of array $3-... equals exactly
-  # or contain $1. To search for containing, $1 should be provided with *.
-  # For example: peak*
+  # Function returns all indecies of elements (for every element in array)
+  # founded in array (exactly or contain, to search for containing,
+  # element should be provided with *, for example: peak*)
   # Input: size of "elements to find", elements, array
   # Output: array of indecies 
   # Use: readarray -t ind <<<\
@@ -300,6 +300,10 @@ GetIndArray(){
     shift
   done
   local array=("$@")
+  #if [[ ${#array[@]} -eq 0 ]]; then
+  #    ErrMsg "GetIndArray: Array is empty"
+  #fi
+
 
   local i
   local j
@@ -313,7 +317,7 @@ GetIndArray(){
 }
 
 DelIndArray(){
-  # Function returns an array $3-... without the indecies $2 - array
+  # Function returns an array $3-... without the indecies $2 (array of indecies)
   # Output: array without indecies
   # Use: readarray -t varsList <<<\
   #       "$(DelIndArray "${#scrInd[@]}" "${scrInd[@]}" "${varsList[@]}")"
@@ -582,7 +586,7 @@ ReadArgs(){
           fi
           
           WarnMsg "${strTmp}Argument $i is repeated ${nRepVars[$i]} times.
-                   Last value $i = ${varsList[$i]} is recorded."
+                   Last value is recorded: $i = ${varsList[$i]} ."
       fi
       
       # If assigned value is empty, then do not assign anything
@@ -597,7 +601,7 @@ ReadArgs(){
         eval defValue="\$$i"
         if [[ -n $(RmSp "$defValue") ]]; then
             WarnMsg "${strTmp}The value of argument $i is empty.
-                     Default value $i = $defValue is assigned."
+                     Default value is assigned: $i = $defValue ."
         else
           WarnMsg "${strTmp}The value of argument $i is empty."
         fi

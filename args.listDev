@@ -1,11 +1,11 @@
 ##[ ParDim.sh ]##
 #tabPath                 tables/encode3GRCh38.csv2
-inpPath                 /mnt/gluster/nazarovs/tmp/testData
+dataPath                 /mnt/gluster/nazarovs/tmp/testData
 outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
 #firstStage		pseudosdf
 #lastStage		idroverlapdfsdfs
 jobsDir		        dagRuns/test
-selectJobsTabPath       
+selectJobsListPath       
 
 ##[ Download ]##
 execute                 true
@@ -40,8 +40,9 @@ trueRep		        false
 
 
 ##[ Allignment ]##
-execute                 true
-script                  /home/nazarovs/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
+execute                 fal
+script                  /home/nazarovs/projects/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
+script                  pizda
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
 bwaIndexName		GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 bwaSoftwareLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/bwa.tar.gz

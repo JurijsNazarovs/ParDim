@@ -8,6 +8,9 @@
 # The first task is executed on a submit machine,
 # while other in a sequence are writen as JOB in the main dag file.
 #
+#
+# NO MORE STAGES!
+#
 #                             Pipeline description
 #-------------------------------------------------------------------------------
 #   Task        Script                Output dag files      Description: 
@@ -35,7 +38,7 @@ EchoLineBold
 echo "[Start] $curScrName"
 argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
 
-## Detect structure of the pipiline
+## Detect structure of the pipeline
 coreTask=("Download" "Preprocess")
 coreTaskScript=("$scriptsPath/boostDownload.sh"
                 "$scriptsPath/makePreprocessDag.sh")
@@ -71,20 +74,20 @@ fi
 whichCoreTask=() #keep indecies of coreTask to execute
 for i in ${!coreTask[@]}; do
   execute=false
-  script=""
-  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 2 "execute" "script"\
+  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute"\
            "execute" "true"  > /dev/null
   
   if [[ "$execute" = true ]]; then
       whichCoreTask=(${whichCoreTask[@]} "$i")
       
-      if [[ -n "$script" ]]; then
-        coreTaskScript["$i"]="$script"
-      fi
+      script="${coreTaskScript[$i]}" #to show a right msg in ReadArgs
+      ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "script"\
+               "execute" "true"  > /dev/null
+      coreTaskScript["$i"]="$script"
   else
     if [[ "$execute" != false ]]; then
         WarnMsg "The value of execute = $execute is not recognised.
-                 Core task \"${coreTask[$i]}\" will not be executed"
+                 Core task ${coreTask[$i]} will not be executed"
     fi
   fi
 done
@@ -102,9 +105,10 @@ readarray -t taskPos <<< "$(DelElemArray "$((${#coreTask[@]} + 1))"\
 nIntegrTask=0 #helps to keep the order of integrated tasks
 for i in "${taskPos[@]}"; do
   execute=false
-  script=""
-  ReadArgs "$argsFile" 1 "$i" 2 "execute" "script" "execute" > /dev/null
+  ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
+      script=""
+      ReadArgs "$argsFile" 1 "$i" 1 "script" > /dev/null
       integrTask["$nIntegrTask"]="$i"
       integrTaskScript["$nIntegrTask"]="$script"
       ((nIntegrTask ++))
@@ -122,21 +126,83 @@ task=("${task[@]}" "${integrTask[@]}")
 taskScript=("${taskScript[@]}" "${integrTaskScript[@]}")
 
 if [[ ${#task[@]} -eq 0 ]]; then
-    ErrMsg "No tasks are assigned.
-            Execution is halted"
+    ErrMsg "Pipeline is empty, i.e. no tasks are assigned.
+            Execution halted."
 fi
 
 # Checking assigned scripts
 for i in "${!task[@]}"; do
-  #taskScript[$i]="$(readlink -f ${taskScript[$i]})" #whole path
-  ChkExist f "$script" "Script for ${task[$i]}"
+  taskScript[$i]="$(readlink -f ${taskScript[$i]})" #whole path
+  ChkExist f "${taskScript[$i]}" "Script for ${task[$i]}: ${taskScript[$i]}\n"
   if [[ "$curScrName" -ef "$script" ]]; then
       ErrMsg "$curScrName cannot be a script for $i,
               since it is the main pipeline script"
   fi
 done
 
-# Print pipeline structure - Need to move it after stages are done.
+
+## Input and default values
+posArgs=("dataPath"  #[R] path for: input data; output of download task
+         "preprocPath" #output of preprocess task
+         "jobsDir"  #tmp working directory for all files
+         "selectJobsListPath" #path to table with jobs to execute. If empty,
+                             #then all from dataPath
+        )
+
+jobsDir=$(mktemp -duq dagTestXXXX)
+pipeStructFile="$jobsDir/pipelineMain.dag" #dag description of the whole pipeline
+selectJobsListPath=""
+ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}" >/dev/null
+
+echo "Creating temporary folder:  $jobsDir ..."
+mkdir -p "$jobsDir"
+
+## Initial checking
+if [[ -n "$(GetIndArray 1 "Download" "${task[@]}")" ]]; then
+    isDownTask=true 
+else
+  isDownTask=false
+fi
+
+# Arguments of main (THIS) script
+if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
+    # Case when we have parts except downloading
+    
+    if [[ -n "$(GetIndArray 1 "Preprocess" "${task[@]}")" ]]; then
+        if [[ -z $(RmSp "$preprocPath") ]]; then
+            preprocPath="$dataPath"
+            WarnMsg "Preprocess is writing in dataPath: $dataPath
+                    Data might be overwritten.
+                    Consider to set argument preprocPath"
+        fi
+        ChkAvailToWrite "preprocPath"
+    fi
+    
+    if [[ -z "$selectJobsListPath" ]]; then
+        ChkExist d "$dataPath" "dataPath: $dataPath"
+
+        selectJobsListPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
+        if [[ "$isDownTask" = false ]]; then
+            # No downloading => create file
+            ls -d "$dataPath/"* > "$selectJobsListPath" 
+        fi
+    else
+      ChkExist f "$selectJobsListPath"\
+               "List of selected directories: $selectJobsListPath"
+      while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
+	ChkExist d "$dirPath" "selectJobsListPath: $dirPath"
+      done < "$selectJobsListPath"
+    fi
+fi
+
+if [[ "$isDownTask" = true ]]; then
+    ChkAvailToWrite "dataPath"
+fi
+
+
+## Print pipeline structure
+PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
+
 maxLenStr=0
 #task=("${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}")
 nZeros=${#task[@]} #number of zeros to make an order
@@ -160,101 +226,8 @@ EchoLineSh
 
 exit 1
 
-taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
-for i in "${task[@]}"; do
-  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
-  taskArgsLabs=("${taskArgsLabs[@]}"
-               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
-done
-
-integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
-                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
-
-# [Dev] Check that integrTaskStage set ok
-if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
-    # ErrMsg "[dev] wrong input of taskStage"
-    WarnMsg "[dev] wrong input of taskStage"
-fi
-
-exit 1
-
-
-
-
-
-
-
-
-
-
-## Input and default values
-posArgs=("inpPath"  #[R] path for: input data; output of download task
-         "outPath"  #[R] path for  output
-         "firstStage"
-         "lastStage"
-         "jobsDir"  #tmp working directory for all files
-         "selectJobsTabPath" #path to table with jobs to execute. If empty,
-                             #then all from inpPath
-        )
-
-jobsDir=$(mktemp -duq dagTestXXXX)
-mainJobsFile="$jobsDir/pipelineMain.dag" #dag description of the whole pipeline
-
-ReadArgs "$argsFile" 1 "$curScrName" "${posArgs[@]}"
-PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
-
-firstStage=$(MapStage "$firstStage")
-lastStage=$(MapStage "$lastStage")
-
-
-## Initial checking
-# Stages
-ChkStages "$firstStage" "$lastStage"
-
-
-# There is no isCoreTask anymore
-if [[ "$firstStage" -eq 0 &&  "$lastStage" -eq 0 &&
-    "${isCoreTask[0]}" = false && "${isCoreTask[1]}" = false ]]; then
-    ErrMsg "No stages or core tasks are selected for the pipeline."
-fi
-
-# Arguments of main (THIS) script
-if [[ !("$firstStage" -eq 0 &&
-            "$lastStage" -eq 0 &&
-            "${isCoreTask[1]}" = false) ]]; then
-    # Case when we have some other parts except downloading
-    ChkAvailToWrite "outPath"
-
-    if [[ -z "$selectJobsTabPath" ]]; then
-        ChkExist d "$inpPath" "inpPath: $inpPath"
-
-        selectJobsTabPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
-        echo "[dev] less $selectJobsTabPath"
-        if [[ "${isCoreTask[0]}" = false ]]; then
-            # No downloading => create file
-            ls -d "$inpPath/"* > "$selectJobsTabPath" 
-        fi
-    else
-      ChkExist f "$selectJobsTabPath"\
-               "List of selected directories: $selectJobsTabPath"
-      while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-	ChkExist d "$dirPath" "selectJobsTabPath: $dirPath"
-      done < "$selectJobsTabPath"
-    fi
-fi
-
-if [[ "${isCoreTask[0]}" = true ]]; then
-    # Downloading
-    ChkAvailToWrite "inpPath"
-fi
-
-echo "Creating temporary folder:  $jobsDir ..."
-mkdir -p "$jobsDir"
-
-exit 1
-
 ## Condor file
-# To execute one of taskScripts (dagMakers) for selected or all jobs in inpPath.
+# To execute one of taskScripts (dagMakers) for selected or all jobs in dataPath.
 # It creates dag file and returns it back
 conDagMaker="$homePath/$jobsDir/makeDag.condor" 
 conOut="$homePath/$jobsDir/conOut"  #output folder for condor
@@ -268,9 +241,9 @@ argsCon=("\$(dagScript)"  #variable -script name
          "\$(dagName)" #variable - output dag file name
          "$scriptsPath"
          "$jobsDir"
-         "${selectJobsTabPath##*/}")
+         "${selectJobsListPath##*/}")
 argsCon=$(JoinToStr "\' \'" ${argsCon[@]})
-# Variables have to be specified in $mainJobsFile (main dag file) using VARS.
+# Variables have to be specified in $pipeStructFile (main dag file) using VARS.
 # It is important to pass $scriptsPath, since new condor jobs
 # (created on executed machine and returned back) must have executable file
 # from $scriptsPath and not from homePath of executable machine.
@@ -279,7 +252,7 @@ transFilesCon=("$scriptsPath/funcList.sh"
                "$scriptsPath/makeCon.sh"
                "\$(dagScript)"
                "$homePath/$argsFile"
-               "$selectJobsTabPath") #transfer files
+               "$selectJobsListPath") #transfer files
 transFilesCon=("$(JoinToStr ", " ${transFilesCon[@]})")
 
 bash "$scriptsPath"/makeCon.sh "$conDagMaker" "$conOut"\
@@ -290,31 +263,31 @@ bash "$scriptsPath"/makeCon.sh "$conDagMaker" "$conOut"\
 
 # [Start] Print the file description - Head
 EchoLineBoldSh
-echo "[Start] Creating $mainJobsFile" 
+echo "[Start] Creating $pipeStructFile" 
 
-PrintfLine > "$mainJobsFile"
-printf "# [Start] Description of $mainJobsFile\n" >> "$mainJobsFile"
-PrintfLine >> "$mainJobsFile"
+PrintfLine > "$pipeStructFile"
+printf "# [Start] Description of $pipeStructFile\n" >> "$pipeStructFile"
+PrintfLine >> "$pipeStructFile"
 
-PrintfLine >> "$mainJobsFile"
-printf "# Input data path: $inpPath\n" >> "$mainJobsFile"
-printf "# Output data path: $outPath\n" >> "$mainJobsFile"
-PrintfLine >> "$mainJobsFile"
+PrintfLine >> "$pipeStructFile"
+printf "# Input data path: $dataPath\n" >> "$pipeStructFile"
+printf "# Output data path: $outPath\n" >> "$pipeStructFile"
+PrintfLine >> "$pipeStructFile"
 
-PrintfLine >> "$mainJobsFile"
+PrintfLine >> "$pipeStructFile"
 printf "# This file manages the order of parts in the pipeline\n" >>\
-       "$mainJobsFile"
-printf "# \n" >> "$mainJobsFile"
-printf "# Possible parts:\n" >> "$mainJobsFile"
+       "$pipeStructFile"
+printf "# \n" >> "$pipeStructFile"
+printf "# Possible parts:\n" >> "$pipeStructFile"
 for i in ${!taskName[@]}
 do
   printf "#\t$((i+1)). ${taskName[$i]}\t\t${taskScript[$i]}\n" >>\
-         "$mainJobsFile"
+         "$pipeStructFile"
 done
-PrintfLine >> "$mainJobsFile"
+PrintfLine >> "$pipeStructFile"
 
-printf "CONFIG $scriptsPath/dag.config\n" >> "$mainJobsFile"
-PrintfLine >> "$mainJobsFile"
+printf "CONFIG $scriptsPath/dag.config\n" >> "$pipeStructFile"
+PrintfLine >> "$pipeStructFile"
 # [End] Print the file description - Head
 
 # [Start] Print the jobs section - Stages
@@ -354,7 +327,7 @@ do
                  "${taskDag[$i]}"\
                  "$scriptsPath"\
                  "$jobsDir"\
-                 "$selectJobsTabPath"\
+                 "$selectJobsListPath"\
                  "false"\
                  > "$firstStageOut"
           fi
@@ -370,15 +343,15 @@ do
         jobId="${taskName[$i]}"
         # Parent Child Dependency 
         if [[ -n "$(RmSp $lastTask)" ]]; then
-            printf "PARENT $lastTask CHILD $jobId\n" >> "$mainJobsFile"
-            PrintfLineSh >> "$mainJobsFile"
+            printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
+            PrintfLineSh >> "$pipeStructFile"
         fi
         # Create list of analysed folders after download
         if [[ "$lastTask" = "${taskName[0]}Dag" ]]; then #downloading 
             printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-                   "$mainJobsFile" 
-            printf "$selectJobsTabPath jobsList $inpPath \n" >>\
-                   "$mainJobsFile"
+                   "$pipeStructFile" 
+            printf "$selectJobsListPath jobsList $dataPath \n" >>\
+                   "$pipeStructFile"
         fi
 
         # Print the condor job
@@ -386,18 +359,18 @@ do
         # because I just return files back in that folder(jobsDir),
         # using postscript. 
         # And i use some tmp folder inside of the exeMultiDag.sh.
-        printf "JOB $jobId $conDagMaker DIR $jobsDir\n" >> "$mainJobsFile"
+        printf "JOB $jobId $conDagMaker DIR $jobsDir\n" >> "$pipeStructFile"
         printf "VARS $jobId dagScript=\"${taskScript[$i]}\"\n" >>\
-               "$mainJobsFile" #need to be transfered
+               "$pipeStructFile" #need to be transfered
         printf "VARS $jobId taskArgsLabs=\"${taskArgsLabs[$i]}\"\n" >>\
-               "$mainJobsFile" #string with labels
+               "$pipeStructFile" #string with labels
         printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
-               "$mainJobsFile" #just a name
+               "$pipeStructFile" #just a name
 
         # Post Script to move dag files in right folders
         printf "SCRIPT POST $jobId $scriptsPath/postScript.sh " >>\
-               "$mainJobsFile"
-        printf "${taskDag[$i]%.*}.tar.gz tar\n" >> "$mainJobsFile"
+               "$pipeStructFile"
+        printf "${taskDag[$i]%.*}.tar.gz tar\n" >> "$pipeStructFile"
 
         lastTask="${taskName[$i]}" #save last executed task
       fi
@@ -407,11 +380,11 @@ do
           jobId="${taskName[$i]}Dag"
           # Parent Child Dependency
           if [[ -n "$(RmSp $lastTask)" ]]; then #i.e. we had a task before
-              printf "PARENT $lastTask CHILD $jobId\n\n" >> "$mainJobsFile"
+              printf "PARENT $lastTask CHILD $jobId\n\n" >> "$pipeStructFile"
           fi
 
           printf "SUBDAG EXTERNAL $jobId $jobsDir/${taskDag[$i]}\n" >>\
-                 "$mainJobsFile"
+                 "$pipeStructFile"
           lastTask="$jobId" #save last executed task
 
       fi
@@ -419,23 +392,23 @@ do
 done
 
 # Delete tmp folder $jobsDir
-#printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n" >> "$mainJobsFile"
+#printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n" >> "$pipeStructFile"
 # [End] Print the jobs section - Stages
 
 # End of file
-PrintfLine >> "$mainJobsFile"
-printf "# [End]  Description of $mainJobsFile\n" >> "$mainJobsFile"
-PrintfLine >> "$mainJobsFile"
+PrintfLine >> "$pipeStructFile"
+printf "# [End]  Description of $pipeStructFile\n" >> "$pipeStructFile"
+PrintfLine >> "$pipeStructFile"
 
-echo "[End]  Creating $mainJobsFile"
+echo "[End]  Creating $pipeStructFile"
 EchoLineBoldSh
 
 ## Submit mainDAG.dag
 if [[ "$isFT" = true ]]; then
     ErrMsg "0 jobs are queued by $curScrName"
 else
-  #condor_submit_dag -f $mainJobsFile
-  echo "$mainJobsFile was submitted!"
+  #condor_submit_dag -f $pipeStructFile
+  echo "$pipeStructFile was submitted!"
   echo ""
 fi
 
@@ -443,3 +416,33 @@ fi
 echo "[End]  $curScrName"
 EchoLineBold
 exit 0
+
+
+
+
+
+
+
+
+
+####### SOme usefull part
+
+exit 1
+
+taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
+for i in "${task[@]}"; do
+  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
+  taskArgsLabs=("${taskArgsLabs[@]}"
+               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
+done
+
+integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
+                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
+
+# [Dev] Check that integrTaskStage set ok
+if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
+    # ErrMsg "[dev] wrong input of taskStage"
+    WarnMsg "[dev] wrong input of taskStage"
+fi
+
+exit 1
