@@ -39,8 +39,11 @@ echo "[Start] $curScrName"
 argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
 
 ## Detect structure of the pipeline
+coreTask=("Download" "Preprocess")
+coreTaskScript=("$scriptsPath/boostDownload.sh"
+                "$scriptsPath/makePreprocessDag.sh")
 
-# Detect all possible labels of integrated tasks based on the patern:
+# Detect all possible labels of integrated scritps based on the pattern:
 # ##[scrLab]## - Case sensetive. Spaces are not important at all.
 readarray -t taskPos <<<\
           "$(awk -v pattern="^(##)\\\[.*\\\](##)$"\
@@ -67,32 +70,60 @@ if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
             $taskPosDupl"
 fi
 
-nTask=0 #helps to keep the order of integrated tasks
+# Detect coreTask
+whichCoreTask=() #keep indecies of coreTask to execute
+for i in ${!coreTask[@]}; do
+  execute=false
+  ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "execute"\
+           "execute" "true"  > /dev/null
+  
+  if [[ "$execute" = true ]]; then
+      whichCoreTask=(${whichCoreTask[@]} "$i")
+      
+      script="${coreTaskScript[$i]}" #to show a right msg in ReadArgs
+      ReadArgs "$argsFile" 1 "${coreTask[$i]}" 1 "script"\
+               "execute" "true"  > /dev/null
+      coreTaskScript["$i"]="$script"
+  else
+    if [[ "$execute" != false ]]; then
+        WarnMsg "The value of execute = $execute is not recognised.
+                 Core task ${coreTask[$i]} will not be executed"
+    fi
+  fi
+done
+
+if [[ ${#whichCoreTask[@]} != 0 ]]; then
+       WarnMsg "Following tasks are reserved for the system:
+               $(JoinToStr ", " "${coreTask[@]}")
+               You cannot use them for your scripts."
+fi
+
+# Detect integrTask
+readarray -t taskPos <<< "$(DelElemArray "$((${#coreTask[@]} + 1))"\
+                                         "${coreTask[@]}" "$curScrName"\
+                                         "${taskPos[@]}")"
+nIntegrTask=0 #helps to keep the order of integrated tasks
 for i in "${taskPos[@]}"; do
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
       script=""
-      isMultiMap=true #if runs for every directory
-      ReadArgs "$argsFile" 1 "$i" 2 "script" "isMultiMap" "isMultiMap"\
-               > /dev/null
-      task["$nTask"]="$i"
-      taskScript["$nTask"]="$script"
-      if [[ "$isMultiMap" != false && "$isMultiMap" != true ]]; then
-          ErrMsg "Task $i:
-                 The value of isMultiMap = $isMultiMap is not recognised.
-                 Please, check the value."
-      fi
-      taskMultiMap["$nTask"]="$isMultiMap"
-      ((nTask ++))
-  else
-    if [[ "$execute" != false ]]; then
-        WarnMsg "Task $i:
-                 The value of execute = $execute is not recognised.
-                 Task $i will not be executed."
-    fi
+      ReadArgs "$argsFile" 1 "$i" 1 "script" > /dev/null
+      integrTask["$nIntegrTask"]="$i"
+      integrTaskScript["$nIntegrTask"]="$script"
+      ((nIntegrTask ++))
   fi
 done
+
+# Form final tasks to execute
+task=()
+taskScript=()
+for i in "${whichCoreTask[@]}"; do
+  task=("${task[@]}" "${coreTask[$i]}")
+  taskScript=("${taskScript[@]}" "${coreTaskScript[$i]}")
+done
+task=("${task[@]}" "${integrTask[@]}")
+taskScript=("${taskScript[@]}" "${integrTaskScript[@]}")
 
 if [[ ${#task[@]} -eq 0 ]]; then
     ErrMsg "Pipeline is empty, i.e. no tasks are assigned.
@@ -101,9 +132,7 @@ fi
 
 # Checking assigned scripts
 for i in "${!task[@]}"; do
-  #taskScript[$i]="$(readlink -f "${taskScript[$i]}")" #whole path.
-  # Returns empty if  starts with /
-  #echo "${taskScript[$i]}"
+  taskScript[$i]="$(readlink -f ${taskScript[$i]})" #whole path
   ChkExist f "${taskScript[$i]}" "Script for ${task[$i]}: ${taskScript[$i]}\n"
   if [[ "$curScrName" -ef "$script" ]]; then
       ErrMsg "$curScrName cannot be a script for $i,
@@ -113,10 +142,11 @@ done
 
 
 ## Input and default values
-posArgs=("dataPath"
+posArgs=("dataPath"  #[R] path for: input data; output of download task
+         "preprocPath" #output of preprocess task
          "jobsDir"  #tmp working directory for all files
          "selectJobsListPath" #path to table with jobs to execute. If empty,
-                              #then all from dataPath
+                             #then all from dataPath
         )
 
 jobsDir=$(mktemp -duq dagTestXXXX)
@@ -133,34 +163,42 @@ if [[ -n "$(GetIndArray 1 "Download" "${task[@]}")" ]]; then
 else
   isDownTask=false
 fi
+
 # Arguments of main (THIS) script
 if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
     # Case when we have parts except downloading
     
-    if [[ -z $(RmSp "$selectJobsListPath") ]]; then
-        if [[ -z $(RmSp "$dataPath") ]]; then
-            ErrMsg "Please provide dataPath in $curScrName
-                    to define directories for an analysis or
-                    selectJobsListPath - list of analysed directories."
+    if [[ -n "$(GetIndArray 1 "Preprocess" "${task[@]}")" ]]; then
+        if [[ -z $(RmSp "$preprocPath") ]]; then
+            preprocPath="$dataPath"
+            WarnMsg "Preprocess is writing in dataPath: $dataPath
+                    Data might be overwritten.
+                    Consider to set argument preprocPath"
         fi
+        ChkAvailToWrite "preprocPath"
+    fi
+    
+    if [[ -z "$selectJobsListPath" ]]; then
         ChkExist d "$dataPath" "dataPath: $dataPath"
 
         selectJobsListPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
         if [[ "$isDownTask" = false ]]; then
             # No downloading => create file
             ls -d "$dataPath/"* > "$selectJobsListPath" 
-        else
-          WarnMsg "Since you download data, make sure 
-                  it is downloaded in dataPath = $dataPath ."
         fi
     else
       ChkExist f "$selectJobsListPath"\
                "List of selected directories: $selectJobsListPath"
       while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-	ChkExist d "$dirPath" "selectJobsListPath: directory $dirPath"
+	ChkExist d "$dirPath" "selectJobsListPath: $dirPath"
       done < "$selectJobsListPath"
     fi
 fi
+
+if [[ "$isDownTask" = true ]]; then
+    ChkAvailToWrite "dataPath"
+fi
+
 
 ## Print pipeline structure
 PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"

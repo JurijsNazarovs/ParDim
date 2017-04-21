@@ -15,10 +15,15 @@
     in the name of the script.
     Possible solution: [\s]*##\[[\s]*[^\S]*[\s]*\]##[\s]*
     Problem that awk does not know \S and \s . https://regex101.com
-[-] Change isCoreTask for whichCoreTask=<array of numbers>
+[+] Change isCoreTask for whichCoreTask=<array of numbers>
 [+] Read args in file not all of them, but just those which selected
 [-] Think if I need to change path for scripts for the whole path
 [-] How better to define local for i
+[-] Need to rewrite coreTasks for usual tasks, so that everything can be changed
+    just provide default scripts. Since the order is already done.
+[-] singleMap vs multimap
+[-] transfer files
+[-] for now all scripts accept just 2 parameters, args file and path
 ## ========= ParDim.sh ====== ##
 input of:
       stages for scripts. In every section first and Last stage. if no last, then use last as first and another way

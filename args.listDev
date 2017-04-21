@@ -1,13 +1,12 @@
 ##[ ParDim.sh ]##
-#tabPath                 tables/encode3GRCh38.csv2
-dataPath                 /mnt/gluster/nazarovs/tmp/testData
+dataPath                /mnt/gluster/nazarovs/tmp/testData
 outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
-#firstStage		pseudosdf
-#lastStage		idroverlapdfsdfs
 jobsDir		        dagRuns/test
-selectJobsListPath       
+selectJobsListPath      selJobs.list
 
 ##[ Download ]##
+#tabPath                tables/encode3GRCh38.csv2
+script                  scripts/boostDownload.sh
 execute                 true
 tabDelim		,
 tabDelimJoin            ;
@@ -16,6 +15,8 @@ tabIsOrigName           true
 tabRelNameCol           2
 tabIsSize               false
 nDotsExt                1
+isMultiMap              
+
 
 ##[ Preprocess ]##
 
