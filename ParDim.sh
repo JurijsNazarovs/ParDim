@@ -25,7 +25,7 @@
 #
 # Possible arguments are described in a section: ## Default values
 #===============================================================================
-## Libraries, input from the line arguments
+## Libraries/Input
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 scriptsPath="$homePath/scripts"
@@ -162,6 +162,10 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
     fi
 fi
 
+if [[ "$isDownTask" = true ]]; then
+    ChkAvailToWrite "dataPath"
+fi
+
 ## Print pipeline structure
 PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
 
@@ -186,11 +190,14 @@ do
 done
 EchoLineSh
 
+
+## add dag files
+
 exit 1
 
 ## Condor file
-# To execute one of taskScripts (dagMakers) for selected or all jobs in dataPath.
-# It creates dag file and returns it back
+# To execute one of taskScripts (dagMakers) for selected jobs.
+# It creates dag file and returns it back to submit server.
 conDagMaker="$homePath/$jobsDir/makeDag.condor" 
 conOut="$homePath/$jobsDir/conOut"  #output folder for condor
 mkdir -p "$conOut"

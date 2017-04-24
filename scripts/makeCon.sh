@@ -1,31 +1,29 @@
 #!/bin/bash
+#===============================================================================
+# makeCon.sh creates the description of a condor submit file,
+# depending on parameters.
+#===============================================================================
 
+## Libraries
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$homePath"/funcList.sh #call file with functions
 
-### Prior parameters
-#homePath="$PWD" #exported from the first shell pipeDAG.dag
-#specList #exported from the first shell pipeDAG.dag
-#specPath #exported from the first shell pipeDAG.dag
+## Input
 conFile=${1:-"tmp.condor"}
-#conFile="${exeFile%.*}.condor"
-
 outPath=${2:-"conOut"}
-mkdir -p $outPath
-#outPath="/home/nazarovs/pipeTest/out"
-
-exeFile=${3:-"exePipe.sh"} #from the root folder	
+exeFile=${3:-""}	
 args=${4:-""} #array of arguments from condor to executable
 transFiles=${5:-""} #files to transfer
 
-coresNum=${6:-"1"}
-ram=${7:-"3"}
-hd=${8:-"10"}
+nCpus=${6:-"1"}
+memorySize=${7:-"3"}
+diskSize=${8:-"10"}
 
-repFl=${9:-"1"} #repeat? 1-yes, 0 - not
+isRepSubmit=${9:-"1"} #repeat? 1-yes, 0 - not
 
-### Main part
+## Main part
+mkdir -p "$outPath"
 
 printfLine > "$conFile"
 printf "# [Start] Description of $conFile\n" >> "$conFile"
@@ -40,7 +38,7 @@ when_to_transfer_output = ON_EXIT
 getenv = true
 \n" >> "$conFile"
 
-if [ "$repFl" -ne "0" ]; then
+if [ "$isRepSubmit" -ne "0" ]; then
     # Job should only leave the queue if it exited on its own with status 0,
     # to repeat jobs if there is a segmentation fault.
     printf "on_exit_remove = ( (ExitBySignal == False) && (ExitCode == 0) )\n"\
