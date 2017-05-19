@@ -1,8 +1,7 @@
 ##[ ParDim.sh ]##
-dataPath                /mnt/gluster/nazarovs/tmp/testData
-outPath                 /mnt/gluster/nazarovs/knzRuns/tmp/awkRuns2Bam
+dataPath                /home/nazarovs/projects/pipelineChipseq/ParDimDev/tmp
 jobsDir		        dagRuns/test
-selectJobsListPath      selJobs.list
+selectJobsListPath      
 
 ##[ Download ]##
 #tabPath                tables/encode3GRCh38.csv2
@@ -19,12 +18,16 @@ isMultiMap
 
 
 ##[ Preprocess ]##
-
-######[ Preprocess ]##
-execute                 false
+execute                true
+script                  scripts/makeAquasDag.sh
+####[ Preprocess ]##
 
                         pizda
 pizda                   pider
+
+##[ aquas ]##
+execute                 true
+script                  scripts/makeAquasDag.sh
 
 ##[ Aquas ]##
 execute                 true

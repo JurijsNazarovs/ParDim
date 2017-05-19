@@ -9,14 +9,15 @@
 [+] If no core labels in the file then just ignore them. That is,
     need to create a special error in readArgs, which returns specific value
     if label not found.
-[-] Make a right regexpr for awk to fit like following:
+[+] Make a right regexpr for awk to fit like following: DONE FOR PARDIM and funclist
     "        ##[       SCRIPT_NO_SPACES   ]##  "
     That is: a lot of possible spaces before, inside and after, but not
     in the name of the script.
-    Possible solution: [\s]*##\[[\s]*[^\S]*[\s]*\]##[\s]*
+    Possible solution:  [\s]*##\[[\s]*[^\S]*[\s]*\]##[\s]*  [\s]*##\[[\s]*[^\S]*[\s]*\]##[\s]*
     Problem that awk does not know \S and \s . https://regex101.com
 [+] Change isCoreTask for whichCoreTask=<array of numbers>
 [+] Read args in file not all of them, but just those which selected
+[-] Give a warning for repeated scripts.
 [-] Think if I need to change path for scripts for the whole path
 [-] How better to define local for i
 [-] Need to rewrite coreTasks for usual tasks, so that everything can be changed

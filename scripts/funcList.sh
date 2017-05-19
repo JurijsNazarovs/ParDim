@@ -413,7 +413,6 @@ ReadArgs(){
       scrLabList=""
   else
     while (( scrLabNum -- > 0 )) ; do
-      #scrLab=$(echo "$1" | tr '[:upper:]' '[:lower:]')
       scrLab="$1"
       if [[ $(RmSp "$scrLab") != "$scrLab" ]]; then
           ErrMsg "Impossible to read arguments for \"$scrLab\".
@@ -460,7 +459,6 @@ ReadArgs(){
                Value false is assigned"
   fi
 
-
   # Detect start and end positions to read between and read arguments
   local scrLab
   for scrLab in "${scrLabList[@]}"; do
@@ -468,15 +466,20 @@ ReadArgs(){
     local rawEnd="" #until here
 
     if [[ -n "$scrLab" ]]; then
+        local awkPattern
+         awkPattern="\
+^([[:space:]]*##)\
+\\\[[[:space:]]*$scrLab+[[:space:]]*\\\]\
+(##[[:space:]]*)$\
+"
         readarray -t rawStart <<<\
-                  "$(awk -v pattern="^##\\\[$scrLab\\\]##$"\
+                  "$(awk -v pattern="$awkPattern"\
                    '{
-                     gsub (" ", "", $0) #delete spaces
                      if ($0 ~ pattern){
                         print (NR + 1)
                      }
                     }' < "$argsFile"
-                 )"
+                    )"
         
         if [[ ${#rawStart[@]} -gt 1 ]]; then
             rawStart=("$(JoinToStr ", " "${rawStart[@]}")")

@@ -41,18 +41,28 @@ argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
 ## Detect structure of the pipeline
 
 # Detect all possible labels of integrated tasks based on the patern:
-# ##[scrLab]## - Case sensetive. Spaces are not important at all.
+# ##[    scrLab  ]## - Case sensetive. Might be spaces before, after and inside,
+# but cannot split scrLab.
+awkPattern="\
+^([[:space:]]*##)\
+\\\[[[:space:]]*[^[:space:]]+[[:space:]]*\\\]\
+(##[[:space:]]*)$\
+"
+  
 readarray -t taskPos <<<\
-          "$(awk -v pattern="^(##)\\\[.*\\\](##)$"\
+          "$(awk -F "\n"\
+                  -v pattern="$awkPattern"\
            '{
-             gsub (" ", "", $0) #delete spaces
              if ($0 ~ pattern){
-                scrLab = gensub(/##\[(.*)\]##/, "\\1", "", $0)
+                gsub (" ", "", $0) #delete spaces
+                scrLab = gensub(/##\[(.+)\]##*/,
+                                "\\1", "", $0)
                 print scrLab
              }
             }' < "$argsFile"
           )" #has to keep order of taskPos!
-
+echo "Tasks: ${taskPos[@]} hui"
+#exit 1
 taskPosNoDupl=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq))
 if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
     # Just values which are repeated once
