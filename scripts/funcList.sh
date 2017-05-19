@@ -114,10 +114,10 @@ ChkExist(){
   fi
 
   if [[ -z $(RmSp "$2") ]]; then
-      ErrMsg "$3 is empty"
+      ErrMsg "$3 is empty."
   else
     if [ ! -$1 "$2" ]; then 
-        ErrMsg "$3 does not exist"
+        ErrMsg "$3 does not exist."
     fi
   fi
 }
@@ -193,13 +193,14 @@ JoinToStr(){
   # Join all element of an array in one string
   # $1 is the splitting character
   # >$1 everything to combine
-  # Using: JoinToStr "\' \'" "$a" "$b" ... ("$a[@]")
-  spC=$1
+  # Using: JoinToStr "\' \'" "$a" "$b" ... ("$b[@]")
+  local spC=$1
   shift
 
-  args="$1"
+  local args="$1"
   shift
 
+  local i
   for i in "$@"
   do
     args="$args$spC$i"
@@ -281,14 +282,14 @@ InterInt(){
   
 }
 
-GetIndArray(){ 
+ArrayGetInd(){ 
   # Function returns all indecies of elements (for every element in array)
   # founded in array (exactly or contain, to search for containing,
   # element should be provided with *, for example: peak*)
   # Input: size of "elements to find", elements, array
   # Output: array of indecies 
   # Use: readarray -t ind <<<\
-  #               "$(GetIndArray "{#elem[@]}" "${elem[@]}" "${varsList[@]}")"
+  #               "$(ArrayGetInd "{#elem[@]}" "${elem[@]}" "${array[@]}")"
 
   local nElem=${1:-""}
   shift
@@ -301,12 +302,11 @@ GetIndArray(){
   done
   local array=("$@")
   #if [[ ${#array[@]} -eq 0 ]]; then
-  #    ErrMsg "GetIndArray: Array is empty"
+  #    ErrMsg "ArrayGetInd: Array is empty"
   #fi
 
 
-  local i
-  local j
+  local i j
   for i in "${elem[@]}"; do
     for j in "${!array[@]}";  do
       if [[ "${array[$j]}" == $i ]]; then
@@ -316,11 +316,11 @@ GetIndArray(){
   done
 }
 
-DelIndArray(){
+ArrayDelInd(){
   # Function returns an array $3-... without the indecies $2 (array of indecies)
   # Output: array without indecies
   # Use: readarray -t varsList <<<\
-  #       "$(DelIndArray "${#scrInd[@]}" "${scrInd[@]}" "${varsList[@]}")"
+  #       "$(ArrayDelInd "${#indicies[@]}" "${indecies[@]}" "${array[@]}")"
 
   local nIndDel=${1:-""}
   shift
@@ -343,11 +343,11 @@ DelIndArray(){
   done
 }
 
-DelElemArray(){
+ArrayDelElem(){
   # Function returns an array $3,... without the elements $2 - array
   # Output: array without deleted elements
   # Use:readarray -t arrayNoElem <<<\
-  #              "$(DelElemArray "{#elem[@]}" "${elem[@]}" "${varsList[@]}")
+  #              "$(ArrayDelElem "{#elems[@]}" "${elems[@]}" "${array[@]}")"
   local nElem=${1:-""}
   shift
   local elem
@@ -360,12 +360,37 @@ DelElemArray(){
   local array=("$@")
 
   readarray -t indToDel <<<\
-            "$(GetIndArray "${#elem[@]}" "${elem[@]}" "${array[@]}")"
+            "$(ArrayGetInd "${#elem[@]}" "${elem[@]}" "${array[@]}")"
   readarray -t arrayNoElem <<<\
-            "$(DelIndArray "${#indToDel[@]}" "${indToDel[@]}" "${array[@]}")"
-  for i in ${arrayNoElem[@]}; do
+            "$(ArrayDelInd "${#indToDel[@]}" "${indToDel[@]}" "${array[@]}")"
+  local i
+  for i in "${arrayNoElem[@]}"; do
     printf -- "$i\n"
   done
+}
+
+ArrayGetDupls(){
+  # Function returns an array of duplicates from an input array
+  # Function ignores spaces. So, if just spaces are duplicated, then
+  # nothing will be returned.
+  # Use:readarray -t arrayDupls <<< "$(ArrayGetDupls "${array[@]}")"
+  
+  local array=("$@")
+  local arrayNoDupl
+  arrayNoDupl=($(echo "${array[@]}" | tr " " "\n" | sort | uniq))
+  if [[ ${#arrayNoDupl[@]} -ne ${#array[@]} ]]; then
+      local arrayUniq arrayDupl
+      # Just values which are repeated once
+      arrayUniq=($(echo "${array[@]}" | tr " " "\n" | sort | uniq -u))
+      arrayDupl=($(echo "${arrayNoDupl[@]}" "${arrayUniq[@]}" |
+                         tr " " "\n" |
+                         sort |
+                         uniq -u))
+      local i
+      for i in "${arrayDupl[@]}"; do
+        printf -- "$i\n"
+      done
+  fi
 }
 
 ReadArgs(){

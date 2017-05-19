@@ -4,6 +4,8 @@ jobsDir		        dagRuns/test
 selectJobsListPath      
 
 ##[ Download ]##
+
+###[ Download ]##
 #tabPath                tables/encode3GRCh38.csv2
 script                  scripts/boostDownload.sh
 execute                 true
@@ -18,9 +20,9 @@ isMultiMap
 
 
 ##[ Preprocess ]##
-execute                true
-script                  scripts/makeAquasDag.sh
-####[ Preprocess ]##
+execute                 true
+script                  scripts/makePreprocessDag.sh
+###[ Preprocess ]##
 
                         pizda
 pizda                   pider
@@ -31,7 +33,7 @@ script                  scripts/makeAquasDag.sh
 
 ##[ Aquas ]##
 execute                 true
-script                  scripts/makeAquasDag.sh
+script                  scripts/makequasDag.sh
 script                  scripts/makeAquasDag.sh
 specName		hg19
 specList		species.list
@@ -44,9 +46,9 @@ trueRep		        false
 
 
 ##[ Allignment ]##
-execute                 fal
+execute                 true
 script                  /home/nazarovs/projects/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
-script                  pizda
+script                  scripts/makePreprocessDag.sh
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
 bwaIndexName		GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 bwaSoftwareLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/bwa.tar.gz

@@ -61,17 +61,10 @@ readarray -t taskPos <<<\
              }
             }' < "$argsFile"
           )" #has to keep order of taskPos!
-echo "Tasks: ${taskPos[@]} hui"
-#exit 1
-taskPosNoDupl=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq))
-if [[ ${#taskPosNoDupl[@]} -ne ${#taskPos[@]} ]]; then
-    # Just values which are repeated once
-    taskPosUniq=($(echo "${taskPos[@]}" | tr " " "\n" | sort | uniq -u))
-    taskPosDupl=($(echo "${taskPosNoDupl[@]}" "${taskPosUniq[@]}" |
-                       tr " " "\n" |
-                       sort |
-                       uniq -u))
-    taskPosDupl=("$(JoinToStr ", " "${taskPosDupl[@]}")")
+
+readarray -t taskPosDupl <<< "$(ArrayGetDupls "${taskPos[@]}")"
+taskPosDupl=("$(JoinToStr ", " "${taskPosDupl[@]}")")
+if [[ -n "$taskPosDupl" ]]; then
     ErrMsg "Duplicates of tasks are impossible.
             Followings tasks are duplicated:
             $taskPosDupl"
@@ -86,6 +79,16 @@ for i in "${taskPos[@]}"; do
       isMultiMap=true #if runs for every directory
       ReadArgs "$argsFile" 1 "$i" 2 "script" "isMultiMap" "isMultiMap"\
                > /dev/null
+
+      # Checking existence of scripts
+      script="$(readlink -m "$script")" #whole path
+      ChkExist f "$script" "Script for $i: $script\n"
+      if [[ "$curScrName" -ef "$script" ]]; then
+          ErrMsg "$curScrName cannot be a script for $i,
+              since it is the main pipeline script."
+      fi
+
+      # Assigning values to corresponding script
       task["$nTask"]="$i"
       taskScript["$nTask"]="$script"
       if [[ "$isMultiMap" != false && "$isMultiMap" != true ]]; then
@@ -99,7 +102,7 @@ for i in "${taskPos[@]}"; do
     if [[ "$execute" != false ]]; then
         WarnMsg "Task $i:
                  The value of execute = $execute is not recognised.
-                 Task $i will not be executed."
+                 Task will not be executed."
     fi
   fi
 done
@@ -109,19 +112,27 @@ if [[ ${#task[@]} -eq 0 ]]; then
             Execution halted."
 fi
 
-# Checking assigned scripts
-for i in "${!task[@]}"; do
-  #taskScript[$i]="$(readlink -f "${taskScript[$i]}")" #whole path.
-  # Returns empty if  starts with /
-  #echo "${taskScript[$i]}"
-  ChkExist f "${taskScript[$i]}" "Script for ${task[$i]}: ${taskScript[$i]}\n"
-  if [[ "$curScrName" -ef "$script" ]]; then
-      ErrMsg "$curScrName cannot be a script for $i,
-              since it is the main pipeline script"
-  fi
-done
+# Checking duplication of scripts
+readarray -t taskScriptDupl <<< "$(ArrayGetDupls "${taskScript[@]}")"
+if [[ -n "$taskScriptDupl" ]]; then #enough to check just first element
+   for i in "${taskScriptDupl[@]}"; do
+     readarray -t ind <<<\
+               "$(ArrayGetInd "1" "$i" "${taskScript[@]}")"
+     if [[ -n "$ind" ]]; then
+         taskWithDuplScript=()
+         for j in "${ind[@]}"; do
+           taskWithDuplScript=("${taskWithDuplScript[@]}" "${task[$j]}")
+         done
+         taskWithDuplScript=("$(JoinToStr ", " "${taskWithDuplScript[@]}")")
 
+         WarnMsg "The script: $i
+                 is duplicated in following tasks:
+                 ${taskWithDuplScript[@]}"
+     fi
+   done
+fi
 
+exit 1
 ## Input and default values
 posArgs=("dataPath"
          "jobsDir"  #tmp working directory for all files
@@ -137,13 +148,14 @@ ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}" >/dev/null
 echo "Creating temporary folder:  $jobsDir ..."
 mkdir -p "$jobsDir"
 
+
 ## Initial checking
-if [[ -n "$(GetIndArray 1 "Download" "${task[@]}")" ]]; then
+if [[ -n "$(ArrayGetInd 1 "Download" "${task[@]}")" ]]; then
     isDownTask=true 
 else
   isDownTask=false
 fi
-# Arguments of main (THIS) script
+# Arguments of main (THIS) script (dataPath and selectJobsListPath)
 if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
     # Case when we have parts except downloading
     
@@ -175,6 +187,7 @@ fi
 if [[ "$isDownTask" = true ]]; then
     ChkAvailToWrite "dataPath"
 fi
+
 
 ## Print pipeline structure
 PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
@@ -419,7 +432,7 @@ integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
                  $(MapStage "pseudo")   $(MapStage "idroverlap"))
 
 # [Dev] Check that integrTaskStage set ok
-if [ -n "$(GetIndArray 1 "-1" ${integrTaskStage[@]})" ]; then
+if [ -n "$(ArrayGetInd 1 "-1" ${integrTaskStage[@]})" ]; then
     # ErrMsg "[dev] wrong input of taskStage"
     WarnMsg "[dev] wrong input of taskStage"
 fi
