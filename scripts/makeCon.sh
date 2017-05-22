@@ -10,24 +10,32 @@ homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$homePath"/funcList.sh #call file with functions
 
 ## Input
-conFile=${1:-"tmp.condor"}
+conFile=${1:-""}
 outPath=${2:-"conOut"}
 exeFile=${3:-""}	
 args=${4:-""} #array of arguments from condor to executable
 transFiles=${5:-""} #files to transfer
 
 nCpus=${6:-"1"}
-memorySize=${7:-"3"}
+memSize=${7:-"3"}
 diskSize=${8:-"10"}
 
 isRepSubmit=${9:-"1"} #repeat? 1-yes, 0 - not
+isGluster=${10:-"false"}
+
+
+## Initial checking
+ChkExist f "$exeFile" "Executed file for condor: $exeFile\n"
+if [[ -z $(RmSp "$conFile") ]]; then
+    conFile="$(mktemp -qu conFile.XXXX)"
+fi
 
 ## Main part
 mkdir -p "$outPath"
 
-printfLine > "$conFile"
+PrintfLine > "$conFile"
 printf "# [Start] Description of $conFile\n" >> "$conFile"
-printfLine >> "$conFile"
+PrintfLine >> "$conFile"
 printf "universe = vanilla\n\n" >> "$conFile"
 
 ## Options
@@ -50,8 +58,8 @@ if [ "$isRepSubmit" -ne "0" ]; then
     # Release job from hold because of squid:
     printf "periodic_release =  ((JobStatus == 5) && (HoldReasonCode == 12) && "\
             >> "$conFile"
-    printf "(NumJobStarts <= 5) && (CurrentTime - EnteredCurrentStatus) > 300)\n"\
-           >> "$conFile"
+    printf "(NumJobStarts <= 5) && (CurrentTime - EnteredCurrentStatus) > 300)
+           \n" >> "$conFile"
     # The above will make sure that a job is still never released to run more
     # than 5 times and that HTCondor will wait a little while (300 seconds)
     # before releasing the job to try again.
@@ -59,7 +67,7 @@ if [ "$isRepSubmit" -ne "0" ]; then
 fi
 
 
-if [ "$(rmSp $transFiles)" != "" ]; then
+if [[ -n $(RmSp "$transFiles") ]]; then
     printf "transfer_input_files = $transFiles\n" >> "$conFile"
 fi
 
@@ -72,37 +80,35 @@ error = $outPath/condor\$(Cluster).err
 log = $outPath/condor\$(Cluster).log
 \n" >> "$conFile"
 
-## Requirements
-#Requirements = (Target.HasGluster == true) && (Arch == "X86_64") && (OpSys =="LINUX")
-printf \
-    "## Requirements
-Requirements = (Target.HasGluster == true)
 
-request_cpus = $coresNum
-request_memory = ${ram}GB
-request_disk = ${hd}GB
+## Requirements
+if [[ "$isGluster" = true ]]; then
+    printf \
+        "## Requirements
+Requirements = (Target.HasGluster == true)
 \n" >> "$conFile"
+fi
+
+
+## Request
+printf \
+    "## Request
+request_cpus = $nCpus
+request_memory = ${memSize}GB
+request_disk = ${diskSize}GB
+\n" >> "$conFile"
+
 
 ## Execution
 printf "## Execution \n" >> "$conFile"
 
-if [ "$(rmSp $args)" != "" ]; then
+if [[ -n $(RmSp "$args") ]]; then
     printf "arguments = \" \'$args\' \" \n" >> "$conFile"
 fi
 printf "executable = $exeFile\n" >> "$conFile"
 
 ## End
 printf "queue\n" >>  "$conFile"
-
-### End
-printfLine >> "$conFile"
+PrintfLine >> "$conFile"
 printf "# [End] Description of $conFile\n" >> "$conFile"
-printfLine >> "$conFile"
-
-#less $conFile
-
-
-
-
-
-
+PrintfLine >> "$conFile"

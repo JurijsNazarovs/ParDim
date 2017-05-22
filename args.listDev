@@ -41,6 +41,8 @@ specTar		        species.tar.gz
 coresNum		16
 trueRep		        false
 
+transFiles              ,  tmp/hui 2.txt,  tmp/hui 3.txt
+
 ### [ Aquas ] ##
 trueRep		        false
 

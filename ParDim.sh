@@ -8,18 +8,6 @@
 # The first task is executed on a submit machine,
 # while other in a sequence are writen as JOB in the main dag file.
 #
-#
-# NO MORE STAGES!
-#
-#                             Pipeline description
-#-------------------------------------------------------------------------------
-#   Task        Script                Output dag files      Description: 
-#-------------------------------------------------------------------------------
-# - download    boostDownload.sh      downloadFiles.dag     download data based on table
-# - alignment   makeAlignmentDag.sh   alignment.dag         implements some allignment
-# - aquas       makeAquasDag.sh       aquas.dag             implement aquas pipeline
-#-------------------------------------------------------------------------------
-#
 # Input:
 #      -argsFile       file with all arguments for this shell
 #
@@ -70,15 +58,18 @@ if [[ -n "$taskPosDupl" ]]; then
             $taskPosDupl"
 fi
 
+# Assign script, multimap, and files to transfer for a script
 nTask=0 #helps to keep the order of integrated tasks
 for i in "${taskPos[@]}"; do
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
       script=""
+      transFiles=""
+      transFiles=""
       isMultiMap=true #if runs for every directory
-      ReadArgs "$argsFile" 1 "$i" 2 "script" "isMultiMap" "isMultiMap"\
-               > /dev/null
+      ReadArgs "$argsFile" 1 "$i" 3 "script" "isMultiMap" "transFiles"\
+               "isMultiMap" > /dev/null
 
       # Checking existence of scripts
       script="$(readlink -m "$script")" #whole path
@@ -88,7 +79,24 @@ for i in "${taskPos[@]}"; do
               since it is the main pipeline script."
       fi
 
-      # Assigning values to corresponding script
+      # Checking files to transfer"
+      readarray -t transFiles <<<\
+                "$(awk\
+                   '{ gsub(/,[[:space:]]*/, "\n"); print }' <<< "$transFiles"
+                  )"
+      for j in "${!transFiles[@]}"; do
+        if [[ -n $(RmSp "${transFiles[$j]}") ]]; then
+            transFiles[$j]="$(readlink -m "${transFiles[$j]}")"
+            ChkExist f "${transFiles[$j]}" "transFile for $i: ${transFiles[$j]}\n"
+            if [[ -z "${taskTransFiles[$nTask]}" ]]; then
+                taskTransFiles[$nTask]="${transFiles[$j]}"
+            else
+              taskTransFiles[$nTask]="${taskTransFiles[$nTask]}, ${transFiles[$j]}"
+            fi
+        fi
+      done
+      
+      # Assigning values to the corresponding script
       task["$nTask"]="$i"
       taskScript["$nTask"]="$script"
       if [[ "$isMultiMap" != false && "$isMultiMap" != true ]]; then
@@ -112,7 +120,7 @@ if [[ ${#task[@]} -eq 0 ]]; then
             Execution halted."
 fi
 
-# Checking duplication of scripts
+# Checking duplication of scripts to give a warning
 readarray -t taskScriptDupl <<< "$(ArrayGetDupls "${taskScript[@]}")"
 if [[ -n "$taskScriptDupl" ]]; then #enough to check just first element
    for i in "${taskScriptDupl[@]}"; do
@@ -132,7 +140,7 @@ if [[ -n "$taskScriptDupl" ]]; then #enough to check just first element
    done
 fi
 
-exit 1
+
 ## Input and default values
 posArgs=("dataPath"
          "jobsDir"  #tmp working directory for all files
@@ -193,10 +201,10 @@ fi
 PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
 
 maxLenStr=0
-#task=("${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}" "${task[@]}")
 nZeros=${#task[@]} #number of zeros to make an order
 nZeros=${#nZeros}
-for i in "${task[@]}";  do
+for i in "${task[@]}" "Files to Transfer";  do
+  #echo "$i"
   maxLenStr=$(Max $maxLenStr ${#i})
 done
 
@@ -206,15 +214,36 @@ echo ""
 
 for i in "${!task[@]}"
 do
-  printf "%0${nZeros}d. %-$((maxLenStr + nZeros ))s %s\n"\
+  # Script
+  printf "%0${nZeros}d. %-$((maxLenStr + nZeros))s %s\n"\
          "$((i + 1))"\
-         "${task[$i]}"\
-         "$(readlink -f ${taskScript[$i]})"
+        "${task[$i]}"\
+        "${taskScript[$i]}"
+
+  # Files to transfer
+  if [[ -n "${taskTransFiles[$i]}" ]]; then
+      readarray -t strTmp <<< "$(echo "${taskTransFiles[$i]}" | tr "," "\n")"
+      printf "%0${nZeros}s  %-$((maxLenStr + nZeros))s %s\n"\
+             ""\
+             "Files to transfer"\
+             "${strTmp[0]}"
+      for j in "${strTmp[@]:1}"; do
+        printf "%0${nZeros}s %-$((maxLenStr + nZeros))s %s\n"\
+             ""\
+             ""\
+             "$j"
+      done
+  fi
+
+  
+
 done
 EchoLineSh
 
 
-## add dag files
+for i in "${task[@]}"; do
+  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
+done
 
 exit 1
 
@@ -421,12 +450,7 @@ exit 0
 
 exit 1
 
-taskArgsLabsDelim="#" #used in exeMultidag.sh to split taskArgsLabs
-for i in "${task[@]}"; do
-  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
-  taskArgsLabs=("${taskArgsLabs[@]}"
-               "$(JoinToStr "$taskArgsLabsDelim" "$curScrName" "${task[$i]}")")
-done
+
 
 integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
                  $(MapStage "pseudo")   $(MapStage "idroverlap"))

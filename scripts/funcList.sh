@@ -107,6 +107,7 @@ ChkExist(){
   # $1 - input type: d,f,etc
   # $2 - path to the folder, file, etc
   # $3 - label to show in case of error
+  # Usage:
 
   local inpLbl="$3"
   if [[ -z $(RmSp "$inpLbl") ]]; then
@@ -280,7 +281,7 @@ InterInt(){
     echo 0
   fi
   
-}
+} 
 
 ArrayGetInd(){ 
   # Function returns all indecies of elements (for every element in array)
@@ -406,18 +407,19 @@ ReadArgs(){
   # Input:
   #       -argsFile   file with arguments
   #       -scrLabNum  number of script labels
-  #       -scrLabList vector of name of scripts to search for arguments after
-  #                   ##[ scrLab ]##. Case sensetive. Spaces are not important.
-  #                   If scrLab = "", the whole file is searched for arguments,
-  #                   and the last entry is selected.
+  #       -scrLabList vector of name of scripts to search for arguments
+  #        based on the patern: ##[    scrLab  ]## - Case sensetive. Might be
+  #        spaces before, after and inside, but cannot split scrLab..
+  #        If scrLab = "", the whole file is searched for arguments,
+  #        and the last entry is selected
   #       -posArgNum  number of arguments to read
   #       -posArgList possible arguments to search for
   #       -reservArg  reserved argument which can't be duplicated
   #       -isSkipLabErr true = no error for missed labels, if other labels
-  #                   exist. No arguments are read.
+  #        exist. No arguments are read.
   #
   # args.list has to be written in a way:
-  #      argumentName(no spaces) argumentValue(spaces, tabs, any sumbols)
+  #      argumentName(no spaces) argumentValue(spaces, tabs, any symbols)
   # That is after first column space has to be provided!
   #
   # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}"\
@@ -665,7 +667,7 @@ PrintArgs(){
   local i
   for i in ${posArgs[@]}
   do
-    eval "printf \"%-$((maxLenArg + 10))s %s \n\"\
+    eval "printf \"%-$((maxLenArg + 3))s %s \n\"\
                  \"- $i\" \"$"$i"\" "
   done
   EchoLineSh

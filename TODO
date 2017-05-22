@@ -1,11 +1,12 @@
 [+] in ParDim checkArgsList looks redundend and probably has to be deleted
 [-] Fill args.listDev
 [-] Check what will be if Condor fail to create dag file
-[-] Think about providing first stage as condor or local
+[+] Think about providing first stage as condor or local. Delete local launch
 [+] Check in "$tabOut" of boostDownload.sh last columns to see if there are some
     repetitve values. If there are, then it means that in the file:
     same folder + same relative file _ origName=false.
-[-] rewrite MakeCon.sh file, using more options including cores for makeAquasDag.sh
+[+] rewrite MakeCon.sh file, using more options including cores for makeAquasDag.sh
+    Condor accept transFiles using comma only.
 [-] make a specific error from BDS if there is a segmentation fault. Then I can
     put constraint on_exit in condor file, so that it is repeated untill there
     is another error.
@@ -25,7 +26,7 @@
 [-] How better to define local for i
 [+] Need to rewrite coreTasks for usual tasks, so that everything can be changed
     just provide default scripts. Since the order is already done.
-[-] singleMap vs multimap
+[-] singleMap vs multimap => different execute files
 [-] transfer files
 [-] for now all scripts accept just 2 parameters, args file and path
 ## ========= ParDim.sh ====== ##
