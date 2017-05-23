@@ -34,6 +34,9 @@ done
 EchoLineBold
 echo "[Start] $curScrName"
 argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
+argsFile="$(readlink -m "$argsFile")" #whole path
+ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
+
 
 ## Detect structure of the pipeline
 
@@ -74,10 +77,10 @@ for i in "${taskPos[@]}"; do
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
       script=""
-      transFiles=""
-      transFiles=""
       map=multi #if runs for every directory
-      ReadArgs "$argsFile" 1 "$i" 3 "script" "map" "transFiles"\
+      transFiles=""
+      args="" #file with arguments (just one)
+      ReadArgs "$argsFile" 1 "$i" 4 "script" "map" "transFiles" "args"\
                "map" > /dev/null
 
       # Checking existence of scripts
@@ -86,6 +89,13 @@ for i in "${taskPos[@]}"; do
       if [[ "$curScrName" -ef "$script" ]]; then
           ErrMsg "$curScrName cannot be a script for $i,
               since it is the main pipeline script."
+      fi
+
+      # Checking map
+      if [[ "$map" != single && "$map" != multi ]]; then
+          ErrMsg "Task $i:
+                 The value of map = $map is not recognised.
+                 Please, check the value."
       fi
 
       # Checking files to transfer"
@@ -104,16 +114,20 @@ for i in "${taskPos[@]}"; do
             fi
         fi
       done
+
+      # Checking args
+      if [[ -z $(RmSp "$args") ]]; then
+          args="${argsFile}"
+      else
+        args="$(readlink -m "$args")"
+        ChkExist f "$args" "File with arguments for $i: $args\n"
+      fi
       
       # Assigning values to the corresponding script
       task["$nTask"]="$i"
       taskScript["$nTask"]="$script"
-      if [[ "$map" != single && "$map" != multi ]]; then
-          ErrMsg "Task $i:
-                 The value of map = $map is not recognised.
-                 Please, check the value."
-      fi
       taskMap["$nTask"]="$map"
+      taskArgsFile["$nTask"]="$args"
       ((nTask ++))
   else
     if [[ "$execute" != false ]]; then
@@ -204,6 +218,7 @@ if [[ "$isDownTask" = true ]]; then
     ChkAvailToWrite "dataPath"
 fi
 
+
 ## Define corresponding DAG files
 for i in "${task[@]}"; do
   taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
@@ -251,6 +266,7 @@ do
 done
 EchoLineSh
 
+
 ## Condor map file - is used to execute one of mapping scripts to create
 #  dag/splice/usual condor file.
 #  Two mapping scripts:
@@ -262,18 +278,19 @@ mkdir -p "$conMapOutDir"
 
 # Args for condor job, corresponding to order of args in exeMultiDag.sh
 conMapArgs=("\$(taskScript)"  #variable - script name executed by map.script
-            "${argsFile##*/}"
+            "\$(argsFile)"
             "\$(dagName)" #variable - output dag file name
             "$jobsDir"
             "${selectJobsListPath##*/}" #send file name anyway regardless
             #a mapping script, and just do not execute in exeSingleMap
            )
-conMapArgs=$(JoinToStr "\' \'" "${argsCon[@]}")
+conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
+# Transfer files
 for i in "${!task[@]}"; do
   strTmp="$scriptsPath/funcList.sh, \$(taskScript)" #scripts used in
   #mapping scripts
-  conMapTransFiles["$i"]="$strTmp, $homePath/$argsFile"
+  conMapTransFiles["$i"]="$strTmp, \$(argsFile)"
   
   if [[ "${taskMap[$i]}" = multi ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
@@ -285,7 +302,7 @@ for i in "${!task[@]}"; do
 done
 
 bash "$scriptsPath"/makeCon.sh "$conMap" "$conMapOutDir"\
-     "\$(exeMap)" "$conMapArgs" "$conMapTransFiles"\
+     "\$(exeMap)" "$conMapArgs" "\$(conMapTransFiles)"\
      "1" "1" "1"
 if [[ "$?" -ne 0 ]]; then
     exit "$?"
@@ -330,12 +347,16 @@ do
   printf "JOB $jobId $conMap DIR $jobsDir\n" >> "$pipeStructFile"
   
   # Variables for conMap
-  printf "VARS $jobId dagScript=\"${taskScript[$i]}\"\n" >>\
+  printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n" >>\
+         "$pipeStructFile" #transfered automatically since it is executable
+  printf "VARS $jobId taskScript=\"${taskScript[$i]}\"\n" >>\
+         "$pipeStructFile" #need to be transfered
+  printf "VARS $jobId argsFile=\"${taskArgsFile[$i]}\"\n" >>\
          "$pipeStructFile" #need to be transfered
   printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
          "$pipeStructFile" #just a name
-  printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n" >>\
-           "$pipeStructFile"
+  printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n" >>\
+         "$pipeStructFile"
 
   # Post Script to move dag files in right directories
   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh " >>\
@@ -358,7 +379,7 @@ done
 
 ## Submit mainDAG.dag
 
-#condor_submit_dag -f $pipeStructFile
+condor_submit_dag -f $pipeStructFile
 EchoLineSh
 if [[ "$?" -eq 0 ]]; then
     echo "$pipeStructFile was submitted!"

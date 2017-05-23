@@ -54,7 +54,7 @@ dagFile="$jobsDir/$dagName" #path to dagFile: working directory + the name of th
 errFile="$jobsDir/err.${dagScript##*/}" #file with all NOT proceeded folders
 errFile="${errFile%.*}"
 
-# If we run from condor, then we run our script from home directory, thus,
+# If we run from condor, then we run our script from a home directory, thus,
 # we need to change the path to dagScript
 if [[ "$isCondor" = true ]]; then
     dagScript="${dagScript##*/}"
@@ -100,7 +100,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
   # Execute script to create a dag file
   echoLineSh
   echo "[Start]	$dagScript"
-  time bash "$dagScript"\
+  bash "$dagScript"\
        "$argsFile"\
        "$dirPath"\
        "$dagFileInDir"\

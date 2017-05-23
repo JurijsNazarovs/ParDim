@@ -2,7 +2,6 @@
 dataPath                /home/nazarovs/projects/pipelineChipseq/ParDimDev/tmp
 jobsDir		        dagRuns/test
 selectJobsListPath      
-
 ##[ Download ]##
 
 ###[ Download ]##
@@ -17,10 +16,10 @@ tabRelNameCol           2
 tabIsSize               false
 nDotsExt                1
 map                     single
-
+args                    ../ParDim/dataAnalysis/download.args
 
 ##[ Preprocess ]##
-execute                 true
+execute                 false
 script                  scripts/makePreprocessDag.sh
 ###[ Preprocess ]##
 
@@ -28,11 +27,11 @@ script                  scripts/makePreprocessDag.sh
 pizda                   pider
 
 ##[ aquas ]##
-execute                 true
+execute                 
 script                  scripts/makeAquasDag.sh
 
 ##[ Aquas ]##
-execute                 true
+execute                 
 script                  scripts/makequasDag.sh
 script                  scripts/makeAquasDag.sh
 specName		hg19
@@ -49,7 +48,7 @@ trueRep		        false
 
 
 ##[ Allignment ]##
-execute                 true
+execute                 
 script                  /home/nazarovs/projects/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
 script                  scripts/makePreprocessDag.sh
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz
