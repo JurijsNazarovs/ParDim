@@ -21,7 +21,7 @@
 #	- scriptsPath	path with all scripts for pipeline, in case of Condor
 #	- jobsDir	temporary directory for all created files with jobs
 #	- selectJobsTabPath path to table with dirs to execute
-#	- isCondor	fals - no condor, true - condor. Default is true
+#	- isCondor	false - no condor, true - condor. Default is true
 #==============================================================================
 
 ## Libraries, input arguments
@@ -91,7 +91,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
   dirName=${dirPath##*/} #delete all before last backSlash
   
   # Create directory for the current dag file corresponding to dirName
-  curJobDir="$jobsDir/Experiments/$dirName"
+  curJobDir="$jobsDir/analysedDirectories/$dirName"
   mkdir -p "$curJobDir"
 
   # Create name of a dag inside the directory according to dagName

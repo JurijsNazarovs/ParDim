@@ -16,7 +16,7 @@ tabIsOrigName           true
 tabRelNameCol           2
 tabIsSize               false
 nDotsExt                1
-isMultiMap              
+map                     single
 
 
 ##[ Preprocess ]##
@@ -24,7 +24,7 @@ execute                 true
 script                  scripts/makePreprocessDag.sh
 ###[ Preprocess ]##
 
-                        pizda
+#map                        pizda
 pizda                   pider
 
 ##[ aquas ]##
@@ -40,6 +40,7 @@ specList		species.list
 specTar		        species.tar.gz
 coresNum		16
 trueRep		        false
+map                     multi
 
 transFiles              ,  tmp/hui 2.txt,  tmp/hui 3.txt
 

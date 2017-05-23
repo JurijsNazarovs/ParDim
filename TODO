@@ -29,6 +29,8 @@
 [-] singleMap vs multimap => different execute files
 [-] transfer files
 [-] for now all scripts accept just 2 parameters, args file and path
+    Delete all stuff from makeAquasDag.sh
+[-] Check if exeMap.sh exist. Create map array with key = true/false or single/multi
 ## ========= ParDim.sh ====== ##
 input of:
       stages for scripts. In every section first and Last stage. if no last, then use last as first and another way

@@ -20,7 +20,16 @@ scriptsPath="$homePath/scripts"
 source "$scriptsPath"/funcList.sh
 
 curScrName=${0##*/} #delete all before last backSlash
-#curScrName=${curScrName%.*}
+#curScrName=${curScrName%.*} #delete extension
+downloadTaskName="Download" #several parts of the code depend on the name of
+#a task with downloading script
+declare -A taskMapScripts
+taskMapScripts["single"]="$scriptsPath/exeSingleMap.sh"
+taskMapScripts["multi"]="$scriptsPath/exeMultiMap.sh"
+
+for i in "${taskMapScripts[@]}"; do
+  ChkExist f "$i" "Mapping script $i\n"
+done
 
 EchoLineBold
 echo "[Start] $curScrName"
@@ -67,9 +76,9 @@ for i in "${taskPos[@]}"; do
       script=""
       transFiles=""
       transFiles=""
-      isMultiMap=true #if runs for every directory
-      ReadArgs "$argsFile" 1 "$i" 3 "script" "isMultiMap" "transFiles"\
-               "isMultiMap" > /dev/null
+      map=multi #if runs for every directory
+      ReadArgs "$argsFile" 1 "$i" 3 "script" "map" "transFiles"\
+               "map" > /dev/null
 
       # Checking existence of scripts
       script="$(readlink -m "$script")" #whole path
@@ -99,12 +108,12 @@ for i in "${taskPos[@]}"; do
       # Assigning values to the corresponding script
       task["$nTask"]="$i"
       taskScript["$nTask"]="$script"
-      if [[ "$isMultiMap" != false && "$isMultiMap" != true ]]; then
+      if [[ "$map" != single && "$map" != multi ]]; then
           ErrMsg "Task $i:
-                 The value of isMultiMap = $isMultiMap is not recognised.
+                 The value of map = $map is not recognised.
                  Please, check the value."
       fi
-      taskMultiMap["$nTask"]="$isMultiMap"
+      taskMap["$nTask"]="$map"
       ((nTask ++))
   else
     if [[ "$execute" != false ]]; then
@@ -149,7 +158,6 @@ posArgs=("dataPath"
         )
 
 jobsDir=$(mktemp -duq dagTestXXXX)
-pipeStructFile="$jobsDir/pipelineMain.dag" #dag description of the whole pipeline
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}" >/dev/null
 
@@ -158,7 +166,7 @@ mkdir -p "$jobsDir"
 
 
 ## Initial checking
-if [[ -n "$(ArrayGetInd 1 "Download" "${task[@]}")" ]]; then
+if [[ -n "$(ArrayGetInd 1 "$downloadTaskName" "${task[@]}")" ]]; then
     isDownTask=true 
 else
   isDownTask=false
@@ -196,6 +204,11 @@ if [[ "$isDownTask" = true ]]; then
     ChkAvailToWrite "dataPath"
 fi
 
+## Define corresponding DAG files
+for i in "${task[@]}"; do
+  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
+done
+
 
 ## Print pipeline structure
 PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
@@ -204,11 +217,10 @@ maxLenStr=0
 nZeros=${#task[@]} #number of zeros to make an order
 nZeros=${#nZeros}
 for i in "${task[@]}" "Files to Transfer";  do
-  #echo "$i"
   maxLenStr=$(Max $maxLenStr ${#i})
 done
 
-EchoLineSh
+EchoLineBoldSh
 echo "Pipeline structure in order:"
 echo ""
 
@@ -233,232 +245,132 @@ do
              ""\
              "$j"
       done
+      strTmp=() #delete values for future use
   fi
-
-  
 
 done
 EchoLineSh
 
-
-for i in "${task[@]}"; do
-  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
-done
-
-exit 1
-
-## Condor file
-# To execute one of taskScripts (dagMakers) for selected jobs.
-# It creates dag file and returns it back to submit server.
-conDagMaker="$homePath/$jobsDir/makeDag.condor" 
-conOut="$homePath/$jobsDir/conOut"  #output folder for condor
-mkdir -p "$conOut"
+## Condor map file - is used to execute one of mapping scripts to create
+#  dag/splice/usual condor file.
+#  Two mapping scripts:
+#  -exeSingleMap - creates dag file based on some input
+#  -exeMultiMap  - creares splice for every analysed directory
+conMap="$homePath/$jobsDir/makeDag.condor" 
+conMapOutDir="$homePath/$jobsDir/conOut"  #.err, .out, and .log
+mkdir -p "$conMapOutDir"
 
 # Args for condor job, corresponding to order of args in exeMultiDag.sh
-argsCon=("\$(dagScript)"  #variable -script name
-         "${argsFile##*/}"
-         "$taskArgsLabsDelim"
-         "\$(taskArgsLabs)" #variable - string with argument labels
-         "\$(dagName)" #variable - output dag file name
-         "$scriptsPath"
-         "$jobsDir"
-         "${selectJobsListPath##*/}")
-argsCon=$(JoinToStr "\' \'" ${argsCon[@]})
-# Variables have to be specified in $pipeStructFile (main dag file) using VARS.
-# It is important to pass $scriptsPath, since new condor jobs
-# (created on executed machine and returned back) must have executable file
-# from $scriptsPath and not from homePath of executable machine.
+conMapArgs=("\$(taskScript)"  #variable - script name executed by map.script
+            "${argsFile##*/}"
+            "\$(dagName)" #variable - output dag file name
+            "$jobsDir"
+            "${selectJobsListPath##*/}" #send file name anyway regardless
+            #a mapping script, and just do not execute in exeSingleMap
+           )
+conMapArgs=$(JoinToStr "\' \'" "${argsCon[@]}")
 
-transFilesCon=("$scriptsPath/funcList.sh"
-               "$scriptsPath/makeCon.sh"
-               "\$(dagScript)"
-               "$homePath/$argsFile"
-               "$selectJobsListPath") #transfer files
-transFilesCon=("$(JoinToStr ", " ${transFilesCon[@]})")
+for i in "${!task[@]}"; do
+  strTmp="$scriptsPath/funcList.sh, \$(taskScript)" #scripts used in
+  #mapping scripts
+  conMapTransFiles["$i"]="$strTmp, $homePath/$argsFile"
+  
+  if [[ "${taskMap[$i]}" = multi ]]; then
+      conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
+  fi
 
-bash "$scriptsPath"/makeCon.sh "$conDagMaker" "$conOut"\
-     "$scriptsPath/exeMultiDag.sh" "$argsCon" "$transFilesCon" "1" "1" "1"
-
-
-## DAG file, which assign tasks in a right order
-
-# [Start] Print the file description - Head
-EchoLineBoldSh
-echo "[Start] Creating $pipeStructFile" 
-
-PrintfLine > "$pipeStructFile"
-printf "# [Start] Description of $pipeStructFile\n" >> "$pipeStructFile"
-PrintfLine >> "$pipeStructFile"
-
-PrintfLine >> "$pipeStructFile"
-printf "# Input data path: $dataPath\n" >> "$pipeStructFile"
-printf "# Output data path: $outPath\n" >> "$pipeStructFile"
-PrintfLine >> "$pipeStructFile"
-
-PrintfLine >> "$pipeStructFile"
-printf "# This file manages the order of parts in the pipeline\n" >>\
-       "$pipeStructFile"
-printf "# \n" >> "$pipeStructFile"
-printf "# Possible parts:\n" >> "$pipeStructFile"
-for i in ${!taskName[@]}
-do
-  printf "#\t$((i+1)). ${taskName[$i]}\t\t${taskScript[$i]}\n" >>\
-         "$pipeStructFile"
+  if [[ -n "${taskTransFiles[$i]}" ]]; then
+      conMapTransFiles["$i"]="${conMapTransFiles[$i]}, ${taskTransFiles[$i]}"
+  fi
 done
-PrintfLine >> "$pipeStructFile"
 
+bash "$scriptsPath"/makeCon.sh "$conMap" "$conMapOutDir"\
+     "\$(exeMap)" "$conMapArgs" "$conMapTransFiles"\
+     "1" "1" "1"
+if [[ "$?" -ne 0 ]]; then
+    exit "$?"
+fi
+
+
+## DAG description of a pipeline
+pipeStructFile="$jobsDir/pipelineMain.dag"
+
+EchoLineBoldSh
+echo "[Start] Creating $pipeStructFile"
+
+# Print the head
+PrintfLine > "$pipeStructFile"
 printf "CONFIG $scriptsPath/dag.config\n" >> "$pipeStructFile"
 PrintfLine >> "$pipeStructFile"
-# [End] Print the file description - Head
 
-# [Start] Print the jobs section - Stages
+# Print the jobs section
 isFT="true" #is the First Task
 lastTask="" #last executed task for PARENT CHILD dependency
-firstStageOut="$jobsDir/firstStage.out" #echo first output stage here
-for i in ${!taskName[@]} #change for taskIter
+for i in "${!task[@]}"
 do
-
-  if [[ $(interInt "$(echo ${taskStage[@]:(( i*2 )):2 } )"\
-                    "$firstStage $lastStage") -eq 1 ||\
-            ($i -eq 0 && "$isDownload" = true) ]]; then
+  jobId="${task[$i]}"
   
-      # If our task is the first one, then we execute it
-      # otherwise, we write it as a job in condor and create this condor
-
-      # Condor/local part, not Dag
-      if [[ "$isFT" = true ]]; then
-          
-          if [[ $i -eq 0 ]]; then #downloading
-              bash "${taskScript[$i]}"\
-                   "$argsFile"\
-                   "${taskDag[$i]}"\
-                   "false"\
-                   "$taskArgsLabsDelim"\
-                   "${taskArgsLabs[$i]}"\
-                   "false"\
-                   > "$firstStageOut" 
-          else
-            # [Notice] I do provide jobsDir to exeMultiDag.sh,
-            # since new files should be written in that folder.
-            bash "$scriptsPath"/exeMultiDag.sh\
-                 "${taskScript[$i]}"\
-                 "$argsFile"\
-                 "$taskArgsLabsDelim"\
-                 "${taskArgsLabs[$i]}"\
-                 "${taskDag[$i]}"\
-                 "$scriptsPath"\
-                 "$jobsDir"\
-                 "$selectJobsListPath"\
-                 "false"\
-                 > "$firstStageOut"
-          fi
-
-          exFl=$?
-          if [[ $exFl -ne 0 ]]; then
-              ErrMsg "File \"${taskDag[$i]}\" was not generated by
-                      ${taskScript[$i]##*/}"
-          else
-            isFT="false" #not a first stage anymore
-          fi
-      else
-        jobId="${taskName[$i]}"
-        # Parent Child Dependency 
-        if [[ -n "$(RmSp $lastTask)" ]]; then
-            printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
-            PrintfLineSh >> "$pipeStructFile"
-        fi
-        # Create list of analysed folders after download
-        if [[ "$lastTask" = "${taskName[0]}Dag" ]]; then #downloading 
-            printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-                   "$pipeStructFile" 
-            printf "$selectJobsListPath jobsList $dataPath \n" >>\
-                   "$pipeStructFile"
-        fi
-
-        # Print the condor job
-        # [Notice] I do not provide jobsDir to $conDagMaker,
-        # because I just return files back in that folder(jobsDir),
-        # using postscript. 
-        # And i use some tmp folder inside of the exeMultiDag.sh.
-        printf "JOB $jobId $conDagMaker DIR $jobsDir\n" >> "$pipeStructFile"
-        printf "VARS $jobId dagScript=\"${taskScript[$i]}\"\n" >>\
-               "$pipeStructFile" #need to be transfered
-        printf "VARS $jobId taskArgsLabs=\"${taskArgsLabs[$i]}\"\n" >>\
-               "$pipeStructFile" #string with labels
-        printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
-               "$pipeStructFile" #just a name
-
-        # Post Script to move dag files in right folders
-        printf "SCRIPT POST $jobId $scriptsPath/postScript.sh " >>\
-               "$pipeStructFile"
-        printf "${taskDag[$i]%.*}.tar.gz tar\n" >> "$pipeStructFile"
-
-        lastTask="${taskName[$i]}" #save last executed task
-      fi
-
-      # Dag part corresponding to the stage, if it is not empty
-      if [[ -n "$(RmSp ${taskDag[$i]})" ]]; then
-          jobId="${taskName[$i]}Dag"
-          # Parent Child Dependency
-          if [[ -n "$(RmSp $lastTask)" ]]; then #i.e. we had a task before
-              printf "PARENT $lastTask CHILD $jobId\n\n" >> "$pipeStructFile"
-          fi
-
-          printf "SUBDAG EXTERNAL $jobId $jobsDir/${taskDag[$i]}\n" >>\
-                 "$pipeStructFile"
-          lastTask="$jobId" #save last executed task
-
-      fi
+  # Parent Child Dependency 
+  if [[ -n $(RmSp "$lastTask") ]]; then
+      printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
+      PrintfLineSh >> "$pipeStructFile"
   fi
+  
+  # Create list of analysed directories after download
+  if [[ "$lastTask" = "${downloadTaskName}Dag" ]]; then
+      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
+             "$pipeStructFile" 
+      printf "$selectJobsListPath jobsList $dataPath \n\n" >>\
+             "$pipeStructFile"
+  fi
+
+  # Print the condor job
+  # conMap returns files back in jobsDir, using postscript. 
+  # Meanwile i use some tmp directory inside of the exeMap.
+  printf "JOB $jobId $conMap DIR $jobsDir\n" >> "$pipeStructFile"
+  
+  # Variables for conMap
+  printf "VARS $jobId dagScript=\"${taskScript[$i]}\"\n" >>\
+         "$pipeStructFile" #need to be transfered
+  printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
+         "$pipeStructFile" #just a name
+  printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n" >>\
+           "$pipeStructFile"
+
+  # Post Script to move dag files in right directories
+  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh " >>\
+         "$pipeStructFile"
+  printf "${taskDag[$i]%.*}.tar.gz tar\n" >> "$pipeStructFile"
+
+  lastTask="${task[$i]}" #save last executed task
+
+  # DAG part
+  jobId="${task[$i]}Dag"
+  printf "PARENT $lastTask CHILD $jobId\n\n" >> "$pipeStructFile"
+  printf "SUBDAG EXTERNAL $jobId $jobsDir/${taskDag[$i]}\n" >>\
+         "$pipeStructFile"
+  lastTask="$jobId"
 done
 
 # Delete tmp folder $jobsDir
 #printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n" >> "$pipeStructFile"
 # [End] Print the jobs section - Stages
 
-# End of file
-PrintfLine >> "$pipeStructFile"
-printf "# [End]  Description of $pipeStructFile\n" >> "$pipeStructFile"
-PrintfLine >> "$pipeStructFile"
-
-echo "[End]  Creating $pipeStructFile"
-EchoLineBoldSh
-
 ## Submit mainDAG.dag
-if [[ "$isFT" = true ]]; then
-    ErrMsg "0 jobs are queued by $curScrName"
+
+#condor_submit_dag -f $pipeStructFile
+EchoLineSh
+if [[ "$?" -eq 0 ]]; then
+    echo "$pipeStructFile was submitted!"
 else
-  #condor_submit_dag -f $pipeStructFile
-  echo "$pipeStructFile was submitted!"
-  echo ""
+  ErrMsg "$pipeStructFile was not submitted!"
 fi
+EchoLineSh
+
+echo "[End] Creating $pipeStructFile"
+EchoLineBoldSh
 
 ## End
 echo "[End]  $curScrName"
 EchoLineBold
 exit 0
-
-
-
-
-
-
-
-
-
-####### SOme usefull part
-
-exit 1
-
-
-
-integrTaskStage=($(MapStage "toTag")    $(MapStage "toTag")
-                 $(MapStage "pseudo")   $(MapStage "idroverlap"))
-
-# [Dev] Check that integrTaskStage set ok
-if [ -n "$(ArrayGetInd 1 "-1" ${integrTaskStage[@]})" ]; then
-    # ErrMsg "[dev] wrong input of taskStage"
-    WarnMsg "[dev] wrong input of taskStage"
-fi
-
-exit 1

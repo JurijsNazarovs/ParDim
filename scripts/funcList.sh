@@ -73,7 +73,7 @@ ErrMsg(){
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
-  local msg=${1:-"Default message about error"}
+  local msg=${1:-"Default message about an error"}
   local exFl=${2:-"1"} #default exit code
 
   EchoLineBoldSh >> /dev/stderr
@@ -107,7 +107,7 @@ ChkExist(){
   # $1 - input type: d,f,etc
   # $2 - path to the folder, file, etc
   # $3 - label to show in case of error
-  # Usage:
+  # Usage: ChkExist f "$script" "Script for $i: $script\n"
 
   local inpLbl="$3"
   if [[ -z $(RmSp "$inpLbl") ]]; then

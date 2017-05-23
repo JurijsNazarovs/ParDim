@@ -25,7 +25,7 @@ isGluster=${10:-"false"}
 
 
 ## Initial checking
-ChkExist f "$exeFile" "Executed file for condor: $exeFile\n"
+#ChkExist f "$exeFile" "Executed file for condor: $exeFile\n"
 if [[ -z $(RmSp "$conFile") ]]; then
     conFile="$(mktemp -qu conFile.XXXX)"
 fi
