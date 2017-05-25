@@ -26,11 +26,23 @@
 [-] How better to define local for i
 [+] Need to rewrite coreTasks for usual tasks, so that everything can be changed
     just provide default scripts. Since the order is already done.
-[-] singleMap vs multimap => different execute files
-[-] transfer files
+[+] singleMap vs multimap => different execute files
+[+] transfer files
 [-] for now all scripts accept just 2 parameters, args file and path
     Delete all stuff from makeAquasDag.sh
 [-] Check if exeMap.sh exist. Create map array with key = true/false or single/multi
+[-] Finsih single map
+[-] Finish boostDownload
+    Functions used:ErrMsg, ChkEmptyArgs, EchoLine, ReadArgs, ChkUrl
+
+[-] Make split of funcList. Possible solution:
+    ChkEmptyArg + ReadArgs + chkExist = something about args
+    ErrMsg + WarnMsg + any EchoLine = something about Messages
+    ChkUrl = add to download
+    
+[+] Check that jobsDir is in working directory
+[-] Change jobsDir in exeMultiMap.sh for $jobsDir/multiMap/${dagName%.*}
+    
 ## ========= ParDim.sh ====== ##
 input of:
       stages for scripts. In every section first and Last stage. if no last, then use last as first and another way

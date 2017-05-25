@@ -18,11 +18,11 @@ shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 scriptsPath="$homePath/scripts"
 source "$scriptsPath"/funcList.sh
-
+echo "$homePath"
 curScrName=${0##*/} #delete all before last backSlash
 #curScrName=${curScrName%.*} #delete extension
 downloadTaskName="Download" #several parts of the code depend on the name of
-#a task with downloading script
+                            #a task with downloading script
 declare -A taskMapScripts
 taskMapScripts["single"]="$scriptsPath/exeSingleMap.sh"
 taskMapScripts["multi"]="$scriptsPath/exeMultiMap.sh"
@@ -33,7 +33,17 @@ done
 
 EchoLineBold
 echo "[Start] $curScrName"
-argsFile=${1:-"args.listDev"} #file w/ all arguments for this shell
+
+EchoLineSh
+printf "%-35s %s\n"\
+        "The location of $curScrName:"\
+        "$homePath"
+printf "%-35s %s\n"\
+        "The $curScrName is executed from:"\
+        "$PWD"
+EchoLineSh
+
+argsFile=${1:-"$homePath/args.listDev2"} #file w/ all arguments for this shell
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 
@@ -175,7 +185,13 @@ jobsDir=$(mktemp -duq dagTestXXXX)
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}" >/dev/null
 
-echo "Creating temporary folder:  $jobsDir ..."
+if [[ "${jobsDir:0:1}" = "/" ]]; then
+	ErrMsg "jobsDir = $jobsDir 
+                cannot be outside the working directory:
+                $PWD"
+fi
+
+echo "Creating the temporary directory:  $jobsDir"
 mkdir -p "$jobsDir"
 
 
@@ -288,9 +304,10 @@ conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
 for i in "${!task[@]}"; do
-  strTmp="$scriptsPath/funcList.sh, \$(taskScript)" #scripts used in
-  #mapping scripts
-  conMapTransFiles["$i"]="$strTmp, \$(argsFile)"
+  # Scripts used in mapping scripts
+  strTmp="$scriptsPath/funcList.sh, $scriptsPath/funcList.sh, \
+         ${taskScript[i]}"
+  conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
   
   if [[ "${taskMap[$i]}" = multi ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
@@ -349,9 +366,11 @@ do
   # Variables for conMap
   printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n" >>\
          "$pipeStructFile" #transfered automatically since it is executable
-  printf "VARS $jobId taskScript=\"${taskScript[$i]}\"\n" >>\
+  strTmp="${taskScript[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
+  printf "VARS $jobId taskScript=\"$strTmp\"\n" >>\
          "$pipeStructFile" #need to be transfered
-  printf "VARS $jobId argsFile=\"${taskArgsFile[$i]}\"\n" >>\
+  strTmp="${taskArgsFile[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
+  printf "VARS $jobId argsFile=\"$strTmp\"\n" >>\
          "$pipeStructFile" #need to be transfered
   printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
          "$pipeStructFile" #just a name
@@ -378,8 +397,7 @@ done
 # [End] Print the jobs section - Stages
 
 ## Submit mainDAG.dag
-
-condor_submit_dag -f $pipeStructFile
+condor_submit_dag -f "$pipeStructFile"
 EchoLineSh
 if [[ "$?" -eq 0 ]]; then
     echo "$pipeStructFile was submitted!"

@@ -2,12 +2,12 @@
 dataPath                /home/nazarovs/projects/pipelineChipseq/ParDimDev/tmp
 jobsDir		        dagRuns/test
 selectJobsListPath      
-##[ Download ]##
+ ##[ Download ]##
 
 ###[ Download ]##
-#tabPath                tables/encode3GRCh38.csv2
-script                  scripts/boostDownload.sh
+script                  /home/nazarovs/projects/pipelineChipseq/ParDim/scripts/boostDownload.sh
 execute                 true
+tabPath                tmp/perm.download.optIdr.csv
 tabDelim		,
 tabDelimJoin            ;
 tabDirCol               1
@@ -19,7 +19,7 @@ map                     single
 args                    ../ParDim/dataAnalysis/download.args
 
 ##[ Preprocess ]##
-execute                 false
+execute                 true
 script                  scripts/makePreprocessDag.sh
 ###[ Preprocess ]##
 
@@ -31,7 +31,7 @@ execute
 script                  scripts/makeAquasDag.sh
 
 ##[ Aquas ]##
-execute                 
+execute                 true
 script                  scripts/makequasDag.sh
 script                  scripts/makeAquasDag.sh
 specName		hg19
@@ -48,7 +48,7 @@ trueRep		        false
 
 
 ##[ Allignment ]##
-execute                 
+execute                 true
 script                  /home/nazarovs/projects/pipelineChipseq/ParDimDev/scripts/makeAlignmentDag.sh
 script                  scripts/makePreprocessDag.sh
 bwaIndexLink		http://proxy.chtc.wisc.edu/SQUID/yzheng74/GRCh38.tar.gz

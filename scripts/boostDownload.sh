@@ -25,7 +25,6 @@
 
 ## Libraries and options
 shopt -s nullglob #allows create an empty array
-
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$homePath"/funcList.sh
 
@@ -34,47 +33,57 @@ curScrName=${0##*/}
 
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
-dagFile=${2:-"downloadFiles.dag"}
-isSubmit=${3:-"false"} #submit condor or not (independence use of pipeline)
-argsLabsDelim=${4:-""} #delim to split line with labels for argslist
-if [[ -n $(rmSp "$argsLabsDelim") ]]; then
-    argsLabs=${5:-""}
-    readarray -t argsLabs <<< "$(echo "$argsLabs" | tr "$argsLabsDelim" "\n")"
+dagFile=${2:-"download.dag"} #create this
+isCondor=${3:-"true"} #true => ignore values of "isSubmit",
+                      #"isDispProgBar", "jobsDir" from argsFile.
+if [[ "$isCondor" != true && "$isCondor" != false ]]; then
+    ErrMsg "The value of isCondor = $isCondor is not recognised.
+            Please, check the value."
 fi
-isDispProgBar=${6:-"false"} #use if results are not printed in file
 
-# Default values: can be read from the $argsFile
-posArgs=("tabPath" "tabDelim" "tabDelimJoin" "tabDirCol" "tabRelNameCol"\
-         "tabIsSize" "nDotsExt" "inpPath" "jobsDir")
+argsFile="$(readlink -m "$argsFile")" #whole path
+ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 
-tabPath=""		#[R] path for  table
+# Read arguments from the $argsFile, given default values
+posArgs=("tabPath" "outPath"
+         "tabDelim" "tabDelimJoin" "tabDirCol"
+         "tabRelNameCol" "tabIsSize" "nDotsExt"
+         "isSubmit" "jobsDir")
+
+tabPath=""		#[R] path for table
+outPath=""		#[R] path for input data
+isSubmit="false"        #false => dry run 
+isDispProgBar="true"    #use if results are not printed in file
+jobsDir="downTmp"	#directory where to save tmp files HAVE TO CHANGE
 tabDelim=','		#delimeter to use in table
 tabDelimJoin=';'        #delimeter to use in table to join files
 tabDirCol=1             #index of column with directory
-tabIsOrigName="false"   #use original names or not
+tabIsOrigName="false"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="true"        #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
-inpPath=""		#[R] path for input data
-jobsDir="downTmp"	#directory where to save tmp files
 
-echoLine
+EchoLine
 echo "[Start] $curScrName"
-# Read arguments and corresponding values
-readArgs "$argsFile" "${#argsLabs[@]}" "${argsLabs[@]}" "${posArgs[@]}"
-printArgs "$curScrName" "${posArgs[@]}"
+ReadArgs "$argsFile" 1 "Download"  "${#posArgs[@]}" "${posArgs[@]}" > /dev/null
+ChkExist f "$tabPath" "Input file for $curScrName: $tabPath:"
+ChkAvailToWrite "outPath"
+if [[ "$isCondor" = true ]]; then 
+    isSubmit="true"
+    isDispProgBar="false"
+    jobsDir="${dagFile%.*}"
+else
+  dagFile="$jobsDir/$dagFile" #dag file, which contains jobs to download files
+fi
+PrintArgs "$curScrName" "${posArgs[@]}"
 
-# Check if any required arguments are empty
-chkEmptyArgs "${posArgs[@]}" #check if any required arguments are empty
-
-echo "Create temporary folder:  $jobsDir"
+echo "Creating the temporary folder: $jobsDir"
 mkdir -p "$jobsDir"
-dagFile="$jobsDir/$dagFile" #dag file, which contains jobs to download files
 
 
 ## Initial checking of the table
 if [[ "$tabDelimJoin" = "$tabDelim" ]]; then
-    errMsg "tabDelim and tabDelimJoin cannot be the same "
+    ErrMsg "tabDelim and tabDelimJoin cannot be the same"
 fi
 
 # Read names of columns
@@ -88,7 +97,7 @@ nRow=$(awk 'END{print NR}' "$tabPath")
 exFl="$(awk -F $tabDelim -v nCol=$nCol  'NF != nCol {print NR}' $tabPath)"
 
 if [ -n "$exFl" ]; then
-    errMsg "Rows:
+    ErrMsg "Rows:
             $exFl
             have inconsistent number of columns with header"
 fi
@@ -98,12 +107,12 @@ fi
 # Get iterators depending on whether we have size or not
 if [[ "$tabIsSize" = true ]]; then
     if [[ $((tabDirCol%2)) -eq 0 ]]; then
-        errMsg "Parameter \"tabDirCol\" can't be an even number, since
+        ErrMsg "Parameter \"tabDirCol\" can't be an even number, since
                 size column follows link column"
     fi
 
     if [[ $((nCol%2)) -eq 0 ]]; then
-        errMsg "Number of columns should be odd, since
+        ErrMsg "Number of columns should be odd, since
                 size column follows link column and
                 we have dir column"
     fi
@@ -122,13 +131,12 @@ tabTmp2=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp2.XXXX) #create tmp file
 tabTmp3=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp3.XXXX) #create tmp file
 
 printf "" > "$tabOut"
-for i in ${colIter[@]}; do
-  #for ((i=2; i<=2; i++)); do
+for i in "${colIter[@]}"; do
   printf "" > "$tabTmp1"
   printf "" > "$tabTmp2"
   printf "" > "$tabTmp3"
-  # tabDirCol is skipped 
-  if [[ $i = $tabDirCol ]]; then
+ 
+  if [[ "$i" = "$tabDirCol" ]]; then
       continue
   fi
 
@@ -139,7 +147,7 @@ for i in ${colIter[@]}; do
       -v isOrigName=$tabIsOrigName -v relNameCol=$tabRelNameCol\
       -v nDotsExt=$nDotsExt\
       -v colName="${colName[$((i-1))]}"\
-      -v inpPath="$inpPath"\
+      -v outPath="$outPath"\
       '{
         if (NR <= 1) {next} #skip header
 
@@ -179,7 +187,7 @@ for i in ${colIter[@]}; do
         }
 
        }
-       {print $linkCol, inpPath "/" $dirCol "/" fileName}
+       {print $linkCol, outPath "/" $dirCol "/" fileName}
       ' "$tabPath" > "$tabTmp1"
   
 
@@ -204,8 +212,8 @@ for i in ${colIter[@]}; do
       sizeCol=0
       for ((j = 0; j < ${#linkCol[@]}; j++)); do
         
-        if [[ $(chkUrl "${linkCol[j]}") = false ]]; then
-            errMsg "Url is not valid: ${linkCol[j]}
+        if [[ $(ChkUrl "${linkCol[j]}") = false ]]; then
+            ErrMsg "Url is not valid: ${linkCol[j]}
                     Column: $i -  ${colName[$((i-1))]}
                     Row: $rowErrInd"
         fi
@@ -248,6 +256,7 @@ for i in ${colIter[@]}; do
     
   fi
 
+  
   ## Combination of tmp files
   # Create size, link, path
   paste -d "$tabDelim" "$tabTmp2" "$tabTmp1" > "$tabTmp3"
@@ -280,9 +289,9 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   readarray -t line <<< "$(echo "$line" | tr "$tabDelim" "\n")"
   downSize=$((line[0]/1024/1024/1024 + 1)) #in Gb and rounded
   link="${line[1]}"
-  path="$(joinToStr "$tabDelim" "${line[@]:2}")"
+  path="$(JoinToStr "$tabDelim" "${line[@]:2}")"
   # Create arguments string
-  args="$(joinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin")"
+  args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin")"
   printf "JOB download$iter $conFile\n" >> "$dagFile"
   printf "VARS download$iter downSize=\"$downSize\"\n" >> "$dagFile"
   printf "VARS download$iter args=\"$args\"\n" >> "$dagFile"
@@ -302,7 +311,7 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   readarray -t line <<< "$(echo "$line" | tr "/" "\n")"
   lineLen=${#line[@]}
   if [[ $errFl -eq 0 ]]; then
-      echoLineSh
+      EchoLineSh
       printf "Warning!\n\n"
   fi
 
@@ -317,7 +326,7 @@ if [[ $errFl -ne 0 ]]; then
     echo "Total warnings: $errFl"
     echo "Possible reason: for sevaral equal folders same relative name"
     echo "is provided, and parameter \"tabIsOrigName\" is false."
-    echoLineSh
+    EchoLineSh
 fi
 
 
@@ -330,6 +339,6 @@ fi
 rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3"
 
 echo "[End]  $curScrName"
-echoLine
+EchoLine
 
 exit 0
