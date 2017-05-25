@@ -30,18 +30,21 @@
 [+] transfer files
 [-] for now all scripts accept just 2 parameters, args file and path
     Delete all stuff from makeAquasDag.sh
-[-] Check if exeMap.sh exist. Create map array with key = true/false or single/multi
+[+] Check if exeMap.sh exist. Create map array with key = true/false or single/multi
 [-] Finsih single map
 [-] Finish boostDownload
     Functions used:ErrMsg, ChkEmptyArgs, EchoLine, ReadArgs, ChkUrl
 
 [-] Make split of funcList. Possible solution:
-    ChkEmptyArg + ReadArgs + chkExist = something about args
+    ChkEmptyArg + ReadArgs + chkExist + chkAvailabToWrite = something about args
     ErrMsg + WarnMsg + any EchoLine = something about Messages
     ChkUrl = add to download
     
 [+] Check that jobsDir is in working directory
 [-] Change jobsDir in exeMultiMap.sh for $jobsDir/multiMap/${dagName%.*}
+[+] Why download/download in boostDownload using exeSingleMap
+[+] If condor then in boost download conOut for their makeCon.sh should be run
+    with conOut in jobsDir
     
 ## ========= ParDim.sh ====== ##
 input of:

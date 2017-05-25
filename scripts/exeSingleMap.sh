@@ -20,11 +20,12 @@ pwd
 
 ## Libraries, input arguments
 shopt -s nullglob #allows create an empty array
+shopt -s extglob #to use !
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
 source "$homePath"/funcList.sh #call file with functions
 
 curScrName=${0##*/}
-echoLine
+EchoLine
 echo "[Start] $curScrName"
 
 taskScript=${1} #script to create dag (dagMaker)
@@ -48,9 +49,25 @@ bash "$taskScript"\
 exFl=$? #exit value of creating dag
 
 if [ "$exFl" -ne 0 ]; then
+    rm -rf "$curJobDir"
     ErrMsg "The task $taskScript
            returns the eror: $exFl"
-    rm -rf "$curJobDir"
 fi
+
+
+## Collect output together
+# Create tar.gz file of everything inside $jobsDir folder
+tarName="${dagName%.*}.tar.gz" #based on ParDim SCRIPT POST
+#cd "$jobsDir"
+#tar -czf "$tarName" *
+#cd -
+tar -czf "$tarName" -C "$jobsDir" .
+
+mv !("$jobsDir") "$jobsDir"
+mv "$jobsDir"/_condor_std* ./ #move output and err files back,
+                              #otherwise condor will not transfer them
+mv "$jobsDir/$tarName" ./ #otherwise tar will not be transfered
+
+## End
 echo "[End]  $taskScript"
 EchoLineSh

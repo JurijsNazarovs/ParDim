@@ -9,8 +9,8 @@
 # while other in a sequence are writen as JOB in the main dag file.
 #
 # Input:
-#      -argsFile       file with all arguments for this shell
-#
+#      -argsFile     file with all arguments for this shell
+#      -isSubmit     false - do not submit, but create everythig to test
 # Possible arguments are described in a section: ## Default values
 #===============================================================================
 ## Libraries/Input
@@ -44,8 +44,10 @@ printf "%-35s %s\n"\
 EchoLineSh
 
 argsFile=${1:-"$homePath/args.listDev2"} #file w/ all arguments for this shell
+isSubmit=${2:-"true"}
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
+ChkValArg "isSubmit" "" "false" "true"
 
 
 ## Detect structure of the pipeline
@@ -102,11 +104,7 @@ for i in "${taskPos[@]}"; do
       fi
 
       # Checking map
-      if [[ "$map" != single && "$map" != multi ]]; then
-          ErrMsg "Task $i:
-                 The value of map = $map is not recognised.
-                 Please, check the value."
-      fi
+      ChkValArg "map" "Task $i:\n" "single" "multi"
 
       # Checking files to transfer"
       readarray -t transFiles <<<\
@@ -124,7 +122,7 @@ for i in "${taskPos[@]}"; do
             fi
         fi
       done
-
+     
       # Checking args
       if [[ -z $(RmSp "$args") ]]; then
           args="${argsFile}"
@@ -229,6 +227,7 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
       done < "$selectJobsListPath"
     fi
 fi
+# Thus, if we have just download, then selectJobsListPath is empty
 
 if [[ "$isDownTask" = true ]]; then
     ChkAvailToWrite "dataPath"
@@ -300,12 +299,13 @@ conMapArgs=("\$(taskScript)"  #variable - script name executed by map.script
             "${selectJobsListPath##*/}" #send file name anyway regardless
             #a mapping script, and just do not execute in exeSingleMap
            )
+
 conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
 for i in "${!task[@]}"; do
   # Scripts used in mapping scripts
-  strTmp="$scriptsPath/funcList.sh, $scriptsPath/funcList.sh, \
+  strTmp="$scriptsPath/funcList.sh, $scriptsPath/makeCon.sh, \
          ${taskScript[i]}"
   conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
   
@@ -397,14 +397,20 @@ done
 # [End] Print the jobs section - Stages
 
 ## Submit mainDAG.dag
-condor_submit_dag -f "$pipeStructFile"
-EchoLineSh
-if [[ "$?" -eq 0 ]]; then
-    echo "$pipeStructFile was submitted!"
+if [[ "$isSubmit" = true ]]; then
+    condor_submit_dag -f "$pipeStructFile"
+    EchoLineSh
+    if [[ "$?" -eq 0 ]]; then
+        echo "$pipeStructFile was submitted!"
+    else
+      ErrMsg "$pipeStructFile was not submitted!"
+    fi
+    EchoLineSh
 else
-  ErrMsg "$pipeStructFile was not submitted!"
+  EchoLineSh
+  echo "$pipeStructFile is ready for a test"
+  EchoLineSh
 fi
-EchoLineSh
 
 echo "[End] Creating $pipeStructFile"
 EchoLineBoldSh

@@ -34,8 +34,7 @@ curScrName=${0##*/}
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
 dagFile=${2:-"download.dag"} #create this
-isCondor=${3:-"true"} #true => ignore values of "isSubmit",
-                      #"isDispProgBar", "jobsDir" from argsFile.
+isCondor=${3:-"true"} #true => script is executed in Condor(executed server)
 if [[ "$isCondor" != true && "$isCondor" != false ]]; then
     ErrMsg "The value of isCondor = $isCondor is not recognised.
             Please, check the value."
@@ -63,18 +62,22 @@ tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="true"        #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
 
-EchoLine
-echo "[Start] $curScrName"
+if [[ "$isCondor" = false ]]; then
+    EchoLine
+    echo "[Start] $curScrName"
+fi
+
 ReadArgs "$argsFile" 1 "Download"  "${#posArgs[@]}" "${posArgs[@]}" > /dev/null
-ChkExist f "$tabPath" "Input file for $curScrName: $tabPath:"
-ChkAvailToWrite "outPath"
 if [[ "$isCondor" = true ]]; then 
-    isSubmit="true"
+    isSubmit="false" #because submit is the next step of ParDim
     isDispProgBar="false"
-    jobsDir="${dagFile%.*}"
+    jobsDir="${dagFile%/*}"
+    tabPath="${tabPath##*/}"
 else
   dagFile="$jobsDir/$dagFile" #dag file, which contains jobs to download files
 fi
+ChkExist f "$tabPath" "Input file for $curScrName: $tabPath:"
+ChkAvailToWrite "outPath"
 PrintArgs "$curScrName" "${posArgs[@]}"
 
 echo "Creating the temporary folder: $jobsDir"
@@ -101,6 +104,7 @@ if [ -n "$exFl" ]; then
             $exFl
             have inconsistent number of columns with header"
 fi
+
 
 ## Prepare the output table, which is used to submit to condor
 
@@ -246,14 +250,11 @@ for i in "${colIter[@]}"; do
             printf "\n"
           fi
       fi
-
     done < "$tabTmp1"
 
     if [[ "$isDispProgBar" != true ]]; then
         printf " Done!\n"
     fi
-
-    
   fi
 
   
@@ -304,7 +305,7 @@ done < "$tabOut"
 awk -v FS="$tabDelim"\
     '{for(i = 3; i <= NF; i++) {print $i}}'\
     "$tabOut" > "$tabTmp1"
-sort "$tabTmp1" | uniq -d  > "$tabTmp2"
+sort "$tabTmp1" | uniq -d  > "$tabTmp2" #print duplicated directories
 
 errFl=0
 while IFS='' read -r line || [[ -n "$line" ]]; do
@@ -322,10 +323,13 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
 
   ((errFl++))
 done < "$tabTmp2"
+
 if [[ $errFl -ne 0 ]]; then
+    EchoLineSh
     echo "Total warnings: $errFl"
-    echo "Possible reason: for sevaral equal folders same relative name"
+    echo "Possible reason: for sevaral equal directories same relative name"
     echo "is provided, and parameter \"tabIsOrigName\" is false."
+    EchoLineSh
     EchoLineSh
 fi
 
@@ -333,12 +337,26 @@ fi
 ## Submit mainDAG.dag
 if [[ "$isSubmit" = true ]]; then
     condor_submit_dag -f "$dagFile"
+    EchoLineSh
+    if [[ "$?" -eq 0 ]]; then
+        echo "$dagFile was submitted!"
+    else
+      ErrMsg "$dagFile was not submitted!"
+    fi
+    EchoLineSh
+else
+  EchoLineSh
+  echo "$dagFile is ready for a test"
+  EchoLineSh
 fi
+  
 
 ## End
 rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3"
 
-echo "[End]  $curScrName"
-EchoLine
+if [[ "$isCondor" = false ]]; then
+    echo "[End]  $curScrName"
+    EchoLine
+fi
 
 exit 0

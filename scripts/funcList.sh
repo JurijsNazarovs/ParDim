@@ -50,6 +50,26 @@ RmSp(){
   echo "$1" | tr -d '\040\011\012\015'
 }
 
+JoinToStr(){
+  # Join all element of an array in one string
+  # $1 is the splitting character
+  # >$1 everything to combine
+  # Usage: JoinToStr "\' \'" "$a" "$b" ... or ("$a[@]")
+  local spC=$1
+  shift
+
+  local args="$1"
+  shift
+
+  local i
+  for i in "$@"
+  do
+    args="$args$spC$i"
+  done
+
+  echo "$args"    
+}
+
 WarnMsg(){
   # Function displays an error message $1 and returns exit code $2
   # Use:  errMsg "Line1!
@@ -86,21 +106,106 @@ ErrMsg(){
   exit $exFl
 }
 
+## Some functions - still not sure about name
+GetNumLines(){
+  # Function returns number of lines in the file
+  fileName=$1
+
+  if [ "${fileName##*.}" = "gz" ]; then
+      echo "$(zcat $fileName | wc -l)"
+  else
+    echo "$(cat $fileName | wc -l)"
+  fi
+}
+
+Max(){
+  # Function returns the maximum element among the input
+  # Input: max 1 2 3 4 5 Or max ${arr[@]}
+  local res=$1
+  shift 
+  local i
+
+  for i in $@
+  do
+    ((i > res)) && res="$i"
+  done
+
+  echo "$res"
+}
+
+Min(){
+  # Function returns the minimum element among the input
+  # Input: min 1 2 3 4 5 Or min ${arr[@]}
+  local res=$1
+  shift
+  local i
+
+  for i in $@
+  do
+    ((i < res)) && res="$i"
+  done
+
+  echo "$res"
+}
+
 
 ## Status functions. Functions, which check some conditions (boolean)
-
 ChkEmptyArgs(){
   ## Function checks if any of arguments is empty.
+  # Usage: ChkEmptyArgs "${argLab[@]}"
+  # Empty args are missed, e.g. ChkEmptyArgs "" "a" => 1-st value is skipped
   local argLab
   local arg
   
   for argLab in "$@"
   do
+    if [[ -z $(RmSp "$argLab") ]]; then
+        WarnMsg "One of args provided to ChkEmptyArgs is empty
+                or consists of spaces."
+        continue
+    fi
+
     eval arg='$'$argLab
     if [[ -z $(RmSp "$arg") ]]; then
         ErrMsg "Input argument \"$argLab\" is empty"
     fi
   done
+}
+
+ChkValArg(){
+  ## Function checks if $argLab($1) has one of following valuesm and add msg($2)
+  # in ErrMsg.
+  # Usage: ChkValyArg "isSubmit" "msg" "1" "0" "-1"
+  local argLab=${1}
+  if [[ -z $(RmSp "$argLab") ]]; then
+      ErrMsg "Argument provided tp ChkValArg is empty
+                or consists of spaces."
+      continue
+  fi
+  shift
+  local msg=${1}
+  shift
+  local vals=("$@")
+  if [[ "${#vals[@]}" -eq 0 ]]; then
+      ErrMsg "No possible values are provided"
+  fi
+
+  eval arg='$'$argLab #get the value assigned to argLab
+  
+  local i isWrong=true
+  for i in "${vals[@]}"; do
+    if [[ "$arg" == "$i" ]]; then
+        isWrong=false
+        break
+    fi
+  done
+  
+  if [[ "$isWrong" = "true" ]]; then
+    local strTmp=$(JoinToStr "\", \"" "${vals[@]}")
+    ErrMsg "${msg}The value of $argLab = $arg is not recognised.
+            Possible values are: \"$strTmp\".
+            Please, check the value."
+  fi
 }
 
 ChkExist(){
@@ -190,67 +295,6 @@ MapStage(){
   esac
 }
 
-JoinToStr(){
-  # Join all element of an array in one string
-  # $1 is the splitting character
-  # >$1 everything to combine
-  # Using: JoinToStr "\' \'" "$a" "$b" ... ("$b[@]")
-  local spC=$1
-  shift
-
-  local args="$1"
-  shift
-
-  local i
-  for i in "$@"
-  do
-    args="$args$spC$i"
-  done
-
-  echo "$args"    
-}
-
-GetNumLines(){
-  # Function returns number of lines in the file
-  fileName=$1
-
-  if [ "${fileName##*.}" = "gz" ]; then
-      echo "$(zcat $fileName | wc -l)"
-  else
-    echo "$(cat $fileName | wc -l)"
-  fi
-}
-
-Max(){
-  # Function returns the maximum element among the input
-  # Input: max 1 2 3 4 5 Or max ${arr[@]}
-  local res=$1
-  shift 
-  local i
-
-  for i in $@
-  do
-    ((i > res)) && res="$i"
-  done
-
-  echo "$res"
-}
-
-Min(){
-  # Function returns the minimum element among the input
-  # Input: min 1 2 3 4 5 Or min ${arr[@]}
-  local res=$1
-  shift
-  local i
-
-  for i in $@
-  do
-    ((i < res)) && res="$i"
-  done
-
-  echo "$res"
-}
-
 InterInt(){
   # Function intersect 2 intervals
   # Is used to find inclussion of stages
@@ -280,7 +324,6 @@ InterInt(){
   else
     echo 0
   fi
-  
 } 
 
 ArrayGetInd(){ 
