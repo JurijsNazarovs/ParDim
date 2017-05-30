@@ -173,7 +173,8 @@ fi
 
 
 ## Input and default values
-posArgs=("dataPath"
+posArgs=("dataPath" # path for data, which is not neccesary resPath
+         "resPath" #resulted path for all tasks
          "jobsDir"  #tmp working directory for all files
          "selectJobsListPath" #path to table with jobs to execute. If empty,
                               #then all from dataPath
@@ -181,16 +182,24 @@ posArgs=("dataPath"
 
 jobsDir=$(mktemp -duq dagTestXXXX)
 selectJobsListPath=""
-ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}" >/dev/null
+ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
+         > /dev/null
 
-if [[ "${jobsDir:0:1}" = "/" ]]; then
-	ErrMsg "jobsDir = $jobsDir 
-                cannot be outside the working directory:
-                $PWD"
+if [[ "$jobsDir" = "/tmp"* ]]; then
+	WarnMsg "jobsDir = $jobsDir 
+                Condor might not allowed to use /tmp.
+                If pipeline fails, please change jobsDir"
 fi
+jobsDir="$(readlink -m "$jobsDir")"
 
 echo "Creating the temporary directory:  $jobsDir"
 mkdir -p "$jobsDir"
+if [[ "$?" -ne 0 ]]; then
+    ErrMsg "$jobsDir was not created."
+else
+  # Directory might exist
+  ChkAvailToWrite "jobsDir"
+fi
 
 
 ## Initial checking
@@ -209,13 +218,14 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
                     to define directories for an analysis or
                     selectJobsListPath - list of analysed directories."
         fi
-        ChkExist d "$dataPath" "dataPath: $dataPath"
 
         selectJobsListPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
         if [[ "$isDownTask" = false ]]; then
-            # No downloading => create file
+            # No downloading => fill file
+            ChkExist d "$dataPath" "dataPath: $dataPath"
             ls -d "$dataPath/"* > "$selectJobsListPath" 
         else
+          # Probably have to delete, since I provide path
           WarnMsg "Since you download data, make sure 
                   it is downloaded in dataPath = $dataPath ."
         fi
@@ -230,8 +240,28 @@ fi
 # Thus, if we have just download, then selectJobsListPath is empty
 
 if [[ "$isDownTask" = true ]]; then
-    ChkAvailToWrite "dataPath"
+    echo "Creating the data directory:  $dataPath"
+    mkdir -p "$dataPath"
+    if [[ "$?" -ne 0 ]]; then
+        ErrMsg "$dataPath was not created."
+    else
+      # Directory might exist
+      ChkAvailToWrite "dataPath"
+    fi
 fi
+
+if [[ -z $(RmSp "$resPath") ]]; then
+    if [[ -z $(RmSp "dataPath") ]]; then
+        ErrMsg "Path for results resPath is empty.
+               Please provide an available for writing directory."
+    else
+      resPath="${dataPath%/*}"
+      WarnMsg "Path for results resPath is empty.
+               The parent directory of $dataPath is set."
+    fi
+fi
+resPath="$(readlink -m "$resPath")"
+ChkAvailToWrite "resPath"
 
 
 ## Define corresponding DAG files
@@ -287,15 +317,15 @@ EchoLineSh
 #  Two mapping scripts:
 #  -exeSingleMap - creates dag file based on some input
 #  -exeMultiMap  - creares splice for every analysed directory
-conMap="$homePath/$jobsDir/makeDag.condor" 
-conMapOutDir="$homePath/$jobsDir/conOut"  #.err, .out, and .log
+conMap="$jobsDir/makeDag.condor" 
+conMapOutDir="$jobsDir/conOut"  #.err, .out, and .log
 mkdir -p "$conMapOutDir"
 
-# Args for condor job, corresponding to order of args in exeMultiDag.sh
-conMapArgs=("\$(taskScript)"  #variable - script name executed by map.script
-            "\$(argsFile)"
-            "\$(dagName)" #variable - output dag file name
-            "$jobsDir"
+# Args for condor job, corresponding to order of args in Map scripts
+conMapArgs=("\$(taskScript)" #variable - script name executed by map.script
+            "\$(argsFile)" #variable
+            "\$(dagFile)" #variable - output dag file name: jobsDir/map/dagName
+            "\$(resPath)" #variable - partially path for results for task[i]
             "${selectJobsListPath##*/}" #send file name anyway regardless
             #a mapping script, and just do not execute in exeSingleMap
            )
@@ -354,45 +384,61 @@ do
   if [[ "$lastTask" = "${downloadTaskName}Dag" ]]; then
       printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
              "$pipeStructFile" 
-      printf "$selectJobsListPath jobsList $dataPath \n\n" >>\
+      printf "FillListOfDirs $selectJobsListPath $dataPath \n\n" >>\
              "$pipeStructFile"
   fi
 
   # Print the condor job
   # conMap returns files back in jobsDir, using postscript. 
   # Meanwile i use some tmp directory inside of the exeMap.
-  printf "JOB $jobId $conMap DIR $jobsDir\n" >> "$pipeStructFile"
+  jobsDirTmp="$jobsDir/${taskMap[$i]}Map"
+  mkdir -p "$jobsDirTmp"
+  printf "JOB $jobId $conMap DIR $jobsDirTmp\n\n" >> "$pipeStructFile"
   
   # Variables for conMap
-  printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n" >>\
-         "$pipeStructFile" #transfered automatically since it is executable
+  printf "VARS $jobId exeMap=\"${taskMapScripts[${taskMap[$i]}]}\"\n"\
+         >> "$pipeStructFile" #transfered automatically since it is an executable
   strTmp="${taskScript[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
-  printf "VARS $jobId taskScript=\"$strTmp\"\n" >>\
-         "$pipeStructFile" #need to be transfered
+  printf "VARS $jobId taskScript=\"$strTmp\"\n"\
+         >> "$pipeStructFile" #need to be transfered
   strTmp="${taskArgsFile[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
-  printf "VARS $jobId argsFile=\"$strTmp\"\n" >>\
-         "$pipeStructFile" #need to be transfered
-  printf "VARS $jobId dagName=\"${taskDag[$i]}\"\n" >>\
-         "$pipeStructFile" #just a name
-  printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n" >>\
-         "$pipeStructFile"
+  printf "VARS $jobId argsFile=\"$strTmp\"\n"\
+         >> "$pipeStructFile" #need to be transfered
+  printf "VARS $jobId dagFile=\"$jobsDirTmp/${taskDag[$i]}\"\n"\
+         >> "$pipeStructFile" #just a name
+  printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n"\
+         >> "$pipeStructFile"
+  printf "\n" >> "$pipeStructFile"
 
+  # Path to return all results from jobs
+  if [[ "$jobId" = "$downloadTaskName" ]]; then
+      resPathTmp="$dataPath"
+  else
+    resPathTmp="$resPath/$jobId"
+  fi
+  printf "VARS $jobId resPath=\"$resPathTmp\"\n"\
+         >> "$pipeStructFile" #just a name
+  
   # Post Script to move dag files in right directories
-  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh " >>\
-         "$pipeStructFile"
-  printf "${taskDag[$i]%.*}.tar.gz tar\n" >> "$pipeStructFile"
+  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
+         >> "$pipeStructFile"
+  printf "untarfiles ${taskDag[$i]%.*}.tar.gz\n\n" >> "$pipeStructFile"
 
   lastTask="${task[$i]}" #save last executed task
-
+  
   # DAG part
   jobId="${task[$i]}Dag"
-  printf "PARENT $lastTask CHILD $jobId\n\n" >> "$pipeStructFile"
-  printf "SUBDAG EXTERNAL $jobId $jobsDir/${taskDag[$i]}\n" >>\
+  printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
+  PrintfLineSh >> "$pipeStructFile"
+  printf "SUBDAG EXTERNAL $jobId $jobsDirTmp/${taskDag[$i]}\n" >>\
          "$pipeStructFile"
+   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
+         >> "$pipeStructFile"
+  printf "untarfilesfromdir $resPathTmp\n\n" >> "$pipeStructFile"
   lastTask="$jobId"
 done
 
-# Delete tmp folder $jobsDir
+## Delete tmp folder $jobsDir
 #printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n" >> "$pipeStructFile"
 # [End] Print the jobs section - Stages
 
