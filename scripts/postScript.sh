@@ -18,10 +18,13 @@ UntarFiles(){
   # Usage: UntarFile "${files[@]}"
   local files=("$@")
   local file exFl
+  local outPath
   
   for file in "${files[@]}"; do
     ChkExist f "$file" "File to untar: $file"
-    tar -xzf "$file"
+    outPath="$(dirname "$file")"
+    
+    tar -xzf "$file" -C "$outPath"
     exFl=$?
     if [[ "$exFl" -ne 0 ]]; then
         ErrMsg "$file cannot be unzip" "$exFl"
@@ -37,7 +40,7 @@ echo "[Start] $curScrName"
 EchoLineSh
 echo "Task is $task"
 EchoLineSh
-
+echo "$PWD"
 # Fill list with directories from inpPath
 if [[ "$task" = filllistofdirs ]]; then
     file="${1}"

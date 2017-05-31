@@ -422,7 +422,7 @@ do
   # Post Script to move dag files in right directories
   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
-  printf "untarfiles ${taskDag[$i]%.*}.tar.gz\n\n" >> "$pipeStructFile"
+  printf "untarfiles ${taskDag[$i]%.*}.tar.gz \n\n" >> "$pipeStructFile"
 
   lastTask="${task[$i]}" #save last executed task
   
@@ -432,7 +432,7 @@ do
   PrintfLineSh >> "$pipeStructFile"
   printf "SUBDAG EXTERNAL $jobId $jobsDirTmp/${taskDag[$i]}\n" >>\
          "$pipeStructFile"
-   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
+  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
   printf "untarfilesfromdir $resPathTmp\n\n" >> "$pipeStructFile"
   lastTask="$jobId"

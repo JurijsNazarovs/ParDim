@@ -45,6 +45,17 @@
 [+] Why download/download in boostDownload using exeSingleMap
 [+] If condor then in boost download conOut for their makeCon.sh should be run
     with conOut in jobsDir
+[-] Fix boostDownlaod to send all files in exeDownload (maybe no need, if I do not create anything there)
+
+[-] Delete "Since you download data, make sure" (because I set directory now)
+[+] jodsDir can be in any directories where we can write, except tmp. Condor
+does not work there.
+[+] Create better post script
+[-] ask about error in makeCondor connected with line 56 in exeDownload.sh
+
+Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
+exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
+
     
 ## ========= ParDim.sh ====== ##
 input of:

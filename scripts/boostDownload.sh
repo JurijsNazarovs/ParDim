@@ -10,7 +10,7 @@
 # The output file looks like that: link, link for corresponding chip,
 # type (ctl, and etc), name of all experiments where this file is participating.
 #
-# The condor jobs download all files based on links, and distribute
+# The condaor jobs download all files based on links, and distribute
 # in right folders based on names of experiments, changing names based on types.
 #
 # Input:
@@ -34,26 +34,23 @@ curScrName=${0##*/}
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
 dagFile=${2:-"download.dag"} #create this
-isCondor=${3:-"true"} #true => script is executed in Condor(executed server)
-if [[ "$isCondor" != true && "$isCondor" != false ]]; then
-    ErrMsg "The value of isCondor = $isCondor is not recognised.
-            Please, check the value."
-fi
-
+jobsDir=${3:-"downTmp"} #working directory
+resPath=${4:-""} #return on submit server. Can be read from file if empty
+isCondor=${5:-"true"} #true => script is executed in Condor(executed server)
+ChkValArg "isCondor" "" "true" "false"
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 
 # Read arguments from the $argsFile, given default values
-posArgs=("tabPath" "outPath"
+posArgs=("tabPath" "exePath"
          "tabDelim" "tabDelimJoin" "tabDirCol"
          "tabRelNameCol" "tabIsSize" "nDotsExt"
-         "isSubmit" "jobsDir")
+         "isSubmit")
 
 tabPath=""		#[R] path for table
-outPath=""		#[R] path for input data
+exePath="$homePath/exeDownload.sh"
 isSubmit="false"        #false => dry run 
 isDispProgBar="true"    #use if results are not printed in file
-jobsDir="downTmp"	#directory where to save tmp files HAVE TO CHANGE
 tabDelim=','		#delimeter to use in table
 tabDelimJoin=';'        #delimeter to use in table to join files
 tabDirCol=1             #index of column with directory
@@ -61,6 +58,10 @@ tabIsOrigName="false"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="true"        #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
+
+if [[ -z $(RmSp "$resPath") ]]; then
+    posArgs=("${posArgs[@]}" "resPath")
+fi
 
 if [[ "$isCondor" = false ]]; then
     EchoLine
@@ -71,14 +72,16 @@ ReadArgs "$argsFile" 1 "Download"  "${#posArgs[@]}" "${posArgs[@]}" > /dev/null
 if [[ "$isCondor" = true ]]; then 
     isSubmit="false" #because submit is the next step of ParDim
     isDispProgBar="false"
-    jobsDir="${dagFile%/*}"
     tabPath="${tabPath##*/}"
-else
-  dagFile="$jobsDir/$dagFile" #dag file, which contains jobs to download files
 fi
-ChkExist f "$tabPath" "Input file for $curScrName: $tabPath:"
-ChkAvailToWrite "outPath"
+if [[ "${resPath:0:1}" != "/" ]]; then
+    ErrMsg "The full path for resPath has to be provided.
+           Current value is: $resPath ."
+fi
+ChkExist f "$tabPath" "Input file for $curScrName: $tabPath"
 PrintArgs "$curScrName" "${posArgs[@]}"
+WarnMsg "Make sure that resPath: $resPath
+        is available from a submit machine."
 
 echo "Creating the temporary folder: $jobsDir"
 mkdir -p "$jobsDir"
@@ -151,7 +154,6 @@ for i in "${colIter[@]}"; do
       -v isOrigName=$tabIsOrigName -v relNameCol=$tabRelNameCol\
       -v nDotsExt=$nDotsExt\
       -v colName="${colName[$((i-1))]}"\
-      -v outPath="$outPath"\
       '{
         if (NR <= 1) {next} #skip header
 
@@ -191,7 +193,7 @@ for i in "${colIter[@]}"; do
         }
 
        }
-       {print $linkCol, outPath "/" $dirCol "/" fileName}
+       {print $linkCol, $dirCol "/" fileName}
       ' "$tabPath" > "$tabTmp1"
   
 
@@ -282,8 +284,8 @@ conOut="$jobsDir/conOut"
 mkdir -p "$conOut"
 
 conFile="$jobsDir/downloadFiles.condor"
-bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$homePath/exeDownload.sh"\
-     "\$(args)" "" "1" "1" "\$(downSize)" "0"
+bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$exePath"\
+     "\$(args)" "" "1" "1" "\$(downSize)" "\$(transOut)" "\$(transMap)"
 iter=1 #number of downloading files				
 printf "" > "$dagFile"
 while IFS='' read -r line || [[ -n "$line" ]]; do
@@ -292,10 +294,16 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   link="${line[1]}"
   path="$(JoinToStr "$tabDelim" "${line[@]:2}")"
   # Create arguments string
-  args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin")"
-  printf "JOB download$iter $conFile\n" >> "$dagFile"
-  printf "VARS download$iter downSize=\"$downSize\"\n" >> "$dagFile"
-  printf "VARS download$iter args=\"$args\"\n" >> "$dagFile"
+  args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin"\
+                    "\$(transOut)")"
+  jobId="download$iter"
+  printf "JOB  $jobId $conFile\n" >> "$dagFile"
+  
+  printf "VARS $jobId args=\"$args\"\n" >> "$dagFile"
+  printf "VARS $jobId downSize=\"$downSize\"\n" >> "$dagFile"
+  printf "VARS $jobId transOut=\"$jobId.tar.gz\"\n" >> "$dagFile"
+  printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
+         >> "$dagFile"
   printf "\n" >> "$dagFile"
 
   ((iter++))

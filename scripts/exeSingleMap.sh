@@ -30,23 +30,25 @@ echo "[Start] $curScrName"
 
 taskScript=${1} #script to create dag (dagMaker)
 argsFile=${2}
-dagName=${3:-"tmp.dag"} #name of the output dag, which collects all dags
-jobsDir=${4:-"dagTmp"}  #temporary directory for all created files with jobs
+dagFile=${3:-"tmp.dag"} #name of the output dag, with independent jobs
+resPath=${4:-""} #resutls are written here. Should be the full path
 
-
-## Prepare dagFile and a directorie for the $taskScript
-jobsDir="$jobsDir/singleMap/${dagName%.*}"
-mkdir -p "$jobDir"
-dagFileInDir="$jobsDir/$dagName" 
+## Prepare working directories
+jobsDir="${dagFile%/*}" #working directory for ParDim
+curJobDir="${dagFile%.*}" #working directory for taskScript
+mkdir -p "$curJobDir" 
 
 
 ## Execute script to create a dag file
+# dagFile and curJobDir are provided since can be in different places 
 EchoLineSh
 echo "[Start]	$taskScript"
 bash "$taskScript"\
      "$argsFile"\
-     "$dagFileInDir"
-exFl=$? #exit value of creating dag
+     "$dagFile"\
+     "$curJobDir"\
+     "$resPath"
+exFl=$?
 
 if [ "$exFl" -ne 0 ]; then
     rm -rf "$curJobDir"
@@ -57,17 +59,17 @@ fi
 
 ## Collect output together
 # Create tar.gz file of everything inside $jobsDir folder
-tarName="${dagName%.*}.tar.gz" #based on ParDim SCRIPT POST
-#cd "$jobsDir"
-#tar -czf "$tarName" *
-#cd -
+tarName="${dagFile##*/}"
+tarName="${tarName%.*}.tar.gz" #based on ParDim SCRIPT POST
 tar -czf "$tarName" -C "$jobsDir" .
 
-mv !("$jobsDir") "$jobsDir"
-mv "$jobsDir"/_condor_std* ./ #move output and err files back,
-                              #otherwise condor will not transfer them
-mv "$jobsDir/$tarName" ./ #otherwise tar will not be transfered
+# Has to hide all unnecessary files in tmp directories 
+dirTmp=$(mktemp -dq tmpXXXX)
+mv !("$dirTmp") "$dirTmp"
+mv "$dirTmp"/_condor_std* ./
+mv "$dirTmp/$tarName" ./
 
 ## End
 echo "[End]  $taskScript"
 EchoLineSh
+exit 0

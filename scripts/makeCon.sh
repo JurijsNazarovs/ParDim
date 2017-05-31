@@ -10,7 +10,7 @@ homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$homePath"/funcList.sh #call file with functions
 
 ## Input
-conFile=${1:-""}
+conFile=${1:-"condor.tmp"}
 outPath=${2:-"conOut"}
 exeFile=${3:-""}	
 args=${4:-""} #string of arguments from condor to executable" (1\ \2\ \3)
@@ -20,11 +20,17 @@ nCpus=${6:-"1"}
 memSize=${7:-"3"}
 diskSize=${8:-"10"}
 
-isRepSubmit=${9:-"1"} #repeat? 1-yes, 0 - not
-isGluster=${10:-"false"}
+transOut=${9:-""}
+transMap=${10:-""}
+
+isRepeat=${11:-"true"} #1 - repeat in case of failure
+#isHold
+isGluster=${12:-"false"}
 
 
 ## Initial checking
+ChkValArg "isRepeat" "" "false" "true"
+ChkValArg "isGluster" "" "false" "true" 
 #ChkExist f "$exeFile" "Executed file for condor: $exeFile\n"
 if [[ -z $(RmSp "$conFile") ]]; then
     conFile="$(mktemp -qu conFile.XXXX)"
@@ -46,11 +52,11 @@ when_to_transfer_output = ON_EXIT
 getenv = true
 \n" >> "$conFile"
 
-if [ "$isRepSubmit" -ne "0" ]; then
+if [[ "$isRepeat" = true ]]; then
     # Job should only leave the queue if it exited on its own with status 0,
     # to repeat jobs if there is a segmentation fault.
-    printf "on_exit_remove = ( (ExitBySignal == False) && (ExitCode == 0) )\n"\
-           >> "$conFile"
+   # printf "on_exit_remove = ( (ExitBySignal == False) && (ExitCode == 0) )\n"\
+    #       >> "$conFile"
 
     # Put job on hold if it was restarted > 5 times
     printf "on_exit_hold = (NumJobStarts > 5)\n" >> "$conFile"
@@ -71,7 +77,12 @@ if [[ -n $(RmSp "$transFiles") ]]; then
     printf "transfer_input_files = $transFiles\n" >> "$conFile"
 fi
 
+if [[ -n $(RmSp "$transOut") && -n $(RmSp "$transMap") ]]; then
+    printf "transfer_output = $transOut\n" >> "$conFile"
+    printf "transfer_output_remaps = \"$transMap\" \n" >> "$conFile"
+fi
 
+ 
 ## Output
 printf \
     "## Output

@@ -212,7 +212,7 @@ ChkExist(){
   # $1 - input type: d,f,etc
   # $2 - path to the folder, file, etc
   # $3 - label to show in case of error
-  # Usage: ChkExist f "$script" "Script for $i: $script\n"
+  # Usage: ChkExist f "$script" "Script for task: $script\n"
 
   local inpLbl="$3"
   if [[ -z $(RmSp "$inpLbl") ]]; then
@@ -220,16 +220,17 @@ ChkExist(){
   fi
 
   if [[ -z $(RmSp "$2") ]]; then
-      ErrMsg "$3 is empty."
+      ErrMsg "$inpLbl is empty."
   else
     if [ ! -$1 "$2" ]; then 
-        ErrMsg "$3 does not exist."
+        ErrMsg "$inpLbl does not exist."
     fi
   fi
 }
 
 ChkAvailToWrite(){
   ## Function checks if it is possible to write in path $1
+  # Usage: ChkAvailToWrite "inpPath" "outPath"
   ChkEmptyArgs "$@"
 
   local pathLab

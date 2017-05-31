@@ -3,24 +3,27 @@
 # This is an execution file to download data and
 # move it in a right folder
 #========================================================
+## Libraries, input arguments
+shopt -s nullglob #allows create an empty array
+shopt -s extglob #to use !
 
 ## Input and default values
 link=$1
 path=${2:-"./"}
 delim=${3:-","} #use to split path
 delimJoin=${4:-";"} #use to split link
+outTar=$5 #tarFile to return back on submit machine
 
 
 ## Initial preparation
 readarray -t path <<< "$(echo "$path" | tr "$delim" "\n")"
 readarray -t link <<< "$(echo "$link" | tr "$delimJoin" "\n")"
 
-dirTmp=$(mktemp -dq condorTmpXXXX) #create tmp folder
-cd "$dirTmp"
+dirTmp=$(mktemp -dq tmpXXXX) #create tmp folder to tar everything inside later
 
 
 ## Dowloading file
-wget ${link[@]}
+wget "${link[@]}"
 exFl=$?
 if [ "$exFl" -ne 0 ]; then
     echo "Downloading was not successful! Error code: $exFl"
@@ -28,16 +31,17 @@ if [ "$exFl" -ne 0 ]; then
 fi
 
 
-## Copy file in right folders
+## Copy file in a right directory
 for filePath in "${path[@]}"; do
-  mkdir -p "${filePath%/*}"
+  curDir="${filePath%/*}"
+  mkdir -p "$curDir" #directory for downlaoded file
   
   if [[ ${#link[@]} -eq 1 ]]; then
       cp ${link##*/} "$filePath"
   else
-    cat ${link[@]##*/} > "${filePath##*/}"
+    cat "${link[@]##*/}" > "${filePath##*/}" #join several files in one
     exFl=$? #exit value of coping
-    if [ "$exFl" -ne 0 ]; then
+    if [[ "$exFl" -ne 0 ]]; then
         echo "Joining files was not successful! Error code: $exFl"
         exit $exFl
     fi
@@ -45,13 +49,27 @@ for filePath in "${path[@]}"; do
   fi
   
   exFl=$? #exit value of coping
-  if [ "$exFl" -ne 0 ]; then
+  if [[ "$exFl" -ne 0 ]]; then
       echo "Coping was not successful! Error code: $exFl"
+      #if [[ "$exFl" -eq 8 ]]; then
+      #    
+      #fi
       exit $exFl
+  else
+    echo "Success! Check file: $filePath"
+    rm -rf "${link[@]}"
+    mv "$curDir" "$dirTmp"
   fi
-
-  echo "Success! Check file: $filePath"
 done
+
+ls -R "$dirTmp"
+## Prepare tar to move results back
+tar -czf "$outTar" -C "$dirTmp" .
+
+# Has to hide all unnecessary files in tmp directories 
+mv !("$dirTmp") "$dirTmp"
+mv "$dirTmp"/_condor_std* ./
+mv "$dirTmp/$outTar" ./
 
 exit 0
 
