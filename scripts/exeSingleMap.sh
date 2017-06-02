@@ -17,7 +17,6 @@
 #==============================================================================
 ls
 pwd
-
 ## Libraries, input arguments
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
@@ -30,14 +29,13 @@ echo "[Start] $curScrName"
 
 taskScript=${1} #script to create dag (dagMaker)
 argsFile=${2}
-dagFile=${3:-"tmp.dag"} #name of the output dag, with independent jobs
+dagFile=${3:-"tmp.dag"} #path to output dag, with independent jobs
 resPath=${4:-""} #resutls are written here. Should be the full path
 
-## Prepare working directories
-jobsDir="${dagFile%/*}" #working directory for ParDim
-curJobDir="${dagFile%.*}" #working directory for taskScript
-mkdir -p "$curJobDir" 
 
+## Prepare working directories
+jobsDir="${dagFile%.*}Tmp"
+mkdir -p "$jobsDir"
 
 ## Execute script to create a dag file
 # dagFile and curJobDir are provided since can be in different places 
@@ -46,11 +44,11 @@ echo "[Start]	$taskScript"
 bash "$taskScript"\
      "$argsFile"\
      "$dagFile"\
-     "$curJobDir"\
+     "$jobsDir"\
      "$resPath"
 exFl=$?
 
-if [ "$exFl" -ne 0 ]; then
+if [[ "$exFl" -ne 0 ]]; then
     rm -rf "$curJobDir"
     ErrMsg "The task $taskScript
            returns the eror: $exFl"
@@ -59,15 +57,13 @@ fi
 
 ## Collect output together
 # Create tar.gz file of everything inside $jobsDir folder
-tarName="${dagFile##*/}"
-tarName="${tarName%.*}.tar.gz" #based on ParDim SCRIPT POST
-tar -czf "$tarName" -C "$jobsDir" .
-
+tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
+tar -czf "$tarName" "$jobsDir"
+ls
 # Has to hide all unnecessary files in tmp directories 
 dirTmp=$(mktemp -dq tmpXXXX)
 mv !("$dirTmp") "$dirTmp"
-mv "$dirTmp"/_condor_std* ./
-mv "$dirTmp/$tarName" ./
+mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
 
 ## End
 echo "[End]  $taskScript"

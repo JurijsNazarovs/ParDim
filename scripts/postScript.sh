@@ -34,6 +34,28 @@ UntarFiles(){
   done
 }
 
+FillListOfDirs(){
+  local inpPath="${1}"
+  local outfile="$2"
+  ChkEmptyArgs "outfile" "inpPath"
+  ls -d "$inpPath/"*/ > "$outfile"
+  if [[ "$?" -ne 0 ]]; then
+      ErrMsg "Something went wrong with filling the list $outfile.
+               Error: $?" "$?"
+  fi
+}
+
+FillListOfContent(){
+  local inpFile="$1"
+  local outFile="$2"
+  ChkEmptyArgs "inpFile" "outFile"
+
+  printf > "$outFile"
+  while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
+    ls -R "$dirPath" >> "$outFile"
+  done < "$inpFile"
+}
+
 ## Main part - selection based on task
 EchoLineBold
 echo "[Start] $curScrName"
@@ -41,18 +63,28 @@ EchoLineSh
 echo "Task is $task"
 EchoLineSh
 echo "$PWD"
+
 # Fill list with directories from inpPath
 if [[ "$task" = filllistofdirs ]]; then
-    file="${1}"
-    inpPath="$2"
-    ChkEmptyArgs "file" "inpPath"
-    ls -d "$inpPath/"*/ > "$file"
-    if [[ "$?" -ne 0 ]]; then
-        ErrMsg "Something went wrong with filling the list $file.
-               Error: $?" "$?"
-    else
-      exit 0
-    fi
+    #1: inpDir, #2: outFile
+    FillListOfDirs "$1" "$2"
+    exit 0
+fi
+
+# Fill list with all content of directories from file
+if [[ "$task" = filllistofcontent ]]; then
+    #1: inpFile, #2: outFile
+    FillListOfContent "$1" "$2"
+    exit 0
+fi
+
+# Fill list of dirs and create file with content
+if [[ "$task" = filllistofdirsandcontent ]]; then
+    #1: inpDir, #2: outFile
+    FillListOfDirs "$1" "$2"
+    #1: inpFile, #2: outFile
+    FillListOfContent "$2" "$3"
+    exit 0
 fi
 
 # Untar files by providing files

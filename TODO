@@ -51,12 +51,22 @@
 [+] jodsDir can be in any directories where we can write, except tmp. Condor
 does not work there.
 [+] Create better post script
-[-] ask about error in makeCondor connected with line 56 in exeDownload.sh
+[+] ask about error in makeCondor connected with line 56 in exeDownload.sh
+[-] Create specific messages with errors in exe of taskScripts and
+    collect them usint postScript
+[-] Combine single and multimap in one script with argument map to chose
+[-] Despite single or multiMap provide file with all input of previous result
+[+] Download has to be the first or single task 
 
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
 
-    
+The connection between dataPath and Download is hardcoded
+selectJobListPath is empty in case of pipeline = just Download
+
+Download has to be the first or single task 
+
+Every Dagmaker has to accept exeFile from argslist
 ## ========= ParDim.sh ====== ##
 input of:
       stages for scripts. In every section first and Last stage. if no last, then use last as first and another way

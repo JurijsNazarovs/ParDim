@@ -554,7 +554,8 @@ ReadArgs(){
         
         if [[ ${#rawStart[@]} -gt 1 ]]; then
             rawStart=("$(JoinToStr ", " "${rawStart[@]}")")
-            ErrMsg "Impossible to detect arguments for $scrLab in $argsFile.
+            ErrMsg "Impossible to detect arguments for $scrLab
+                   in $argsFile.
                    Label: ##[ $scrLab ]## appears several times.
                    Lines: $rawStart"
         fi
@@ -590,8 +591,8 @@ ReadArgs(){
                   return "2"
               else
                 rawEnd=("$(JoinToStr ", " "${rawEnd[@]}")")
-                ErrMsg "Can't find label: ##[ $scrLab ]## in $argsFile, while
-                        other labels exist:
+                ErrMsg "Can't find label: ##[ $scrLab ]## in $argsFile,
+                        while other labels exist:
                         $rawEnd"    
               fi
           fi
@@ -608,7 +609,8 @@ ReadArgs(){
     fi
 
     if [[ "$rawStart" -gt "$rawEnd" ]]; then
-        ErrMsg "No arguments after ##[ $scrLab ]## in $argsFile!"
+        ErrMsg "No arguments after ##[ $scrLab ]## 
+                in $argsFile!"
     fi
     
     EchoLineSh

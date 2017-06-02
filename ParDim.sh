@@ -63,7 +63,7 @@ awkPattern="\
   
 readarray -t taskPos <<<\
           "$(awk -F "\n"\
-                  -v pattern="$awkPattern"\
+                 -v pattern="$awkPattern"\
            '{
              if ($0 ~ pattern){
                 gsub (" ", "", $0) #delete spaces
@@ -188,7 +188,7 @@ ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
 if [[ "$jobsDir" = "/tmp"* ]]; then
 	WarnMsg "jobsDir = $jobsDir 
                 Condor might not allowed to use /tmp.
-                If pipeline fails, please change jobsDir"
+                If pipeline fails, please change jobsDir."
 fi
 jobsDir="$(readlink -m "$jobsDir")"
 
@@ -203,14 +203,23 @@ fi
 
 
 ## Initial checking
-if [[ -n "$(ArrayGetInd 1 "$downloadTaskName" "${task[@]}")" ]]; then
-    isDownTask=true 
+isDownTask="$(ArrayGetInd 1 "$downloadTaskName" "${task[@]}")"
+if [[ -n "$isDownTask" ]]; then
+    if [[ "$isDownTask" -eq 0 ]]; then
+        isDownTask=true
+    else
+      ErrMsg "The $downloadTaskName has to be first task,
+              but it is $((isDownTask + 1)).
+              If you are trying to use your own downloading script,
+              please change the name."
+    fi
 else
   isDownTask=false
 fi
+
 # Arguments of main (THIS) script (dataPath and selectJobsListPath)
 if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
-    # Case when we have parts except downloading
+    # Case when we have a task except downloading
     
     if [[ -z $(RmSp "$selectJobsListPath") ]]; then
         if [[ -z $(RmSp "$dataPath") ]]; then
@@ -219,7 +228,7 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
                     selectJobsListPath - list of analysed directories."
         fi
 
-        selectJobsListPath="$(mktemp -qu "$homePath/$jobsDir/"selectJobs.XXXX)"
+        selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
         if [[ "$isDownTask" = false ]]; then
             # No downloading => fill file
             ChkExist d "$dataPath" "dataPath: $dataPath"
@@ -236,8 +245,10 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
 	ChkExist d "$dirPath" "selectJobsListPath: directory $dirPath"
       done < "$selectJobsListPath"
     fi
+    selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.XXXX)"
 fi
-# Thus, if we have just download, then selectJobsListPath is empty
+# Thus, if we have just download, then
+# selectJobsListPath and selectJobsListInfo are empty
 
 if [[ "$isDownTask" = true ]]; then
     echo "Creating the data directory:  $dataPath"
@@ -309,7 +320,7 @@ do
   fi
 
 done
-EchoLineSh
+EchoLineBoldSh
 
 
 ## Condor map file - is used to execute one of mapping scripts to create
@@ -326,8 +337,8 @@ conMapArgs=("\$(taskScript)" #variable - script name executed by map.script
             "\$(argsFile)" #variable
             "\$(dagFile)" #variable - output dag file name: jobsDir/map/dagName
             "\$(resPath)" #variable - partially path for results for task[i]
-            "${selectJobsListPath##*/}" #send file name anyway regardless
-            #a mapping script, and just do not execute in exeSingleMap
+            "${selectJobsListInfo##*/}" #single and multi map
+            "${selectJobsListPath##*/}" #multi map
            )
 
 conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
@@ -373,25 +384,33 @@ lastTask="" #last executed task for PARENT CHILD dependency
 for i in "${!task[@]}"
 do
   jobId="${task[$i]}"
-  
-  # Parent Child Dependency 
-  if [[ -n $(RmSp "$lastTask") ]]; then
+  # Parent Child Dependency and prescripts
+  if [[ -n $(RmSp "$lastTask")  ]]; then
       printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
       PrintfLineSh >> "$pipeStructFile"
-  fi
-  
-  # Create list of analysed directories after download
-  if [[ "$lastTask" = "${downloadTaskName}Dag" ]]; then
+      # Need to create 2 files: file with dirs and file with content of dirs
       printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
              "$pipeStructFile" 
-      printf "FillListOfDirs $selectJobsListPath $dataPath \n\n" >>\
+      printf "FillListOfDirsAndContent $resPathTmp " >>\
              "$pipeStructFile"
+      printf "$selectJobsListPath  $selectJobsListInfo \n\n" >>\
+             "$pipeStructFile"
+      # resPathTmp is defined after task is executed. So, we have path for
+      # results of a previous running job.
   fi
+
+  if [[ "$jobId" != "$downloadTaskName" && -z $(RmSp "$lastTask") ]]; then
+      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
+             "$pipeStructFile" 
+      printf "FillListOfContent $selectJobsListPath $selectJobsListInfo \n\n"\
+             >> "$pipeStructFile"
+  fi
+
 
   # Print the condor job
   # conMap returns files back in jobsDir, using postscript. 
   # Meanwile i use some tmp directory inside of the exeMap.
-  jobsDirTmp="$jobsDir/${taskMap[$i]}Map"
+  jobsDirTmp="$jobsDir/${taskMap[$i]}Map/${taskDag[$i]%.*}"
   mkdir -p "$jobsDirTmp"
   printf "JOB $jobId $conMap DIR $jobsDirTmp\n\n" >> "$pipeStructFile"
   
@@ -404,11 +423,12 @@ do
   strTmp="${taskArgsFile[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
   printf "VARS $jobId argsFile=\"$strTmp\"\n"\
          >> "$pipeStructFile" #need to be transfered
-  printf "VARS $jobId dagFile=\"$jobsDirTmp/${taskDag[$i]}\"\n"\
+  #$jobsDirTmp/
+  printf "VARS $jobId dagFile=\"${taskDag[$i]}\"\n"\
          >> "$pipeStructFile" #just a name
   printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n"\
          >> "$pipeStructFile"
-  printf "\n" >> "$pipeStructFile"
+  #printf "\n" >> "$pipeStructFile"
 
   # Path to return all results from jobs
   if [[ "$jobId" = "$downloadTaskName" ]]; then
@@ -420,7 +440,7 @@ do
          >> "$pipeStructFile" #just a name
   
   # Post Script to move dag files in right directories
-  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
+  printf "\nSCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
   printf "untarfiles ${taskDag[$i]%.*}.tar.gz \n\n" >> "$pipeStructFile"
 
@@ -430,7 +450,7 @@ do
   jobId="${task[$i]}Dag"
   printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
   PrintfLineSh >> "$pipeStructFile"
-  printf "SUBDAG EXTERNAL $jobId $jobsDirTmp/${taskDag[$i]}\n" >>\
+  printf "SUBDAG EXTERNAL $jobId ${taskDag[$i]} DIR $jobsDirTmp\n" >>\
          "$pipeStructFile"
   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
@@ -444,7 +464,7 @@ done
 
 ## Submit mainDAG.dag
 if [[ "$isSubmit" = true ]]; then
-    condor_submit_dag -f "$pipeStructFile"
+    condor_submit_dag -f "$pipeStructFile" > /dev/null 2>&1
     EchoLineSh
     if [[ "$?" -eq 0 ]]; then
         echo "$pipeStructFile was submitted!"
