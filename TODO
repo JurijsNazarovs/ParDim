@@ -64,7 +64,11 @@ exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working dir
 The connection between dataPath and Download is hardcoded
 selectJobListPath is empty in case of pipeline = just Download
 
-Download has to be the first or single task 
+Download has to be the first or single task
+
+If single task if first no need for dataPath or select job list
+
+exeMap scritps transfer conOut* dagFile and jobsDir
 
 Every Dagmaker has to accept exeFile from argslist
 ## ========= ParDim.sh ====== ##
@@ -78,6 +82,8 @@ input of:
 check that integrTask != coreTask, including scripts
 
 how to change mapStages, so that people can provide their stages
+
+
 
 #############################
 [-]Prep-process (A lot of question here)

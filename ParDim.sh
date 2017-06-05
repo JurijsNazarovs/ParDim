@@ -222,21 +222,16 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
     # Case when we have a task except downloading
     
     if [[ -z $(RmSp "$selectJobsListPath") ]]; then
-        if [[ -z $(RmSp "$dataPath") ]]; then
+        if [[ -z $(RmSp "$dataPath") && "${taskMap[0]}" = multi ]]; then
             ErrMsg "Please provide dataPath in $curScrName
                     to define directories for an analysis or
                     selectJobsListPath - list of analysed directories."
         fi
 
         selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
-        if [[ "$isDownTask" = false ]]; then
-            # No downloading => fill file
+        if [[ "$isDownTask" = false && "${taskMap[0]}" = multi ]]; then 
             ChkExist d "$dataPath" "dataPath: $dataPath"
             ls -d "$dataPath/"* > "$selectJobsListPath" 
-        else
-          # Probably have to delete, since I provide path
-          WarnMsg "Since you download data, make sure 
-                  it is downloaded in dataPath = $dataPath ."
         fi
     else
       ChkExist f "$selectJobsListPath"\
@@ -385,6 +380,13 @@ for i in "${!task[@]}"
 do
   jobId="${task[$i]}"
   # Parent Child Dependency and prescripts
+  if [[ "${taskMap[$i]}" = multi && -z $(RmSp "$lastTask") ]]; then
+      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
+             "$pipeStructFile" 
+      printf "FillListOfContent $selectJobsListPath $selectJobsListInfo \n\n"\
+             >> "$pipeStructFile"
+  fi
+  
   if [[ -n $(RmSp "$lastTask")  ]]; then
       printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
       PrintfLineSh >> "$pipeStructFile"
@@ -398,14 +400,6 @@ do
       # resPathTmp is defined after task is executed. So, we have path for
       # results of a previous running job.
   fi
-
-  if [[ "$jobId" != "$downloadTaskName" && -z $(RmSp "$lastTask") ]]; then
-      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-             "$pipeStructFile" 
-      printf "FillListOfContent $selectJobsListPath $selectJobsListInfo \n\n"\
-             >> "$pipeStructFile"
-  fi
-
 
   # Print the condor job
   # conMap returns files back in jobsDir, using postscript. 

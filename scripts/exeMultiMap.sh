@@ -75,33 +75,18 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
       '{
         if ($0 ~ curLine) {f = 1; next}
         if ($0 ~ nextLine) {f = 0}
-        if (f == 1) {print}
+        if (f == 1 && NF) {print}
        }' "$selectJobsListInfo" > "$fileWithContent"
-
-done < "$selectJobsListPath"; exit 1
-
-# finsih for previous directory
- awk -F "\n"\
-      -v curLine="$dirPath:"\
-      -v nextLine="$nextDirPath:"\
-      '{
-        if ($0 ~ curLine) {f = 1; next}
-        if ($0 ~ nextLine) {f = 0}
-        if (f == 1) {print}
-       }' "$selectJobsListInfo" > "$fileWithContent"
-
-exit 1
   
   # Execute script to create a dag file
   EchoLineSh
-  echo "[Start]	$taskScript"
+  echo "[Start]	$taskScript for $dirName"
   bash "$taskScript"\
        "$argsFile"\
-       "$dirPath"\
        "$dagFileInDir"\
-       "$scriptsPath"\
-       "${#argsLabs[@]}"\
-       "${argsLabs[@]}"
+       "$curJobDir"\
+       "$resPath"\
+       "selectJobsListInfo"
   exFl=$? #exit value of creating dag
 
   if [[ "$exFl" -ne 0 ]]; then
@@ -111,7 +96,7 @@ exit 1
     ((jobNum++))
     printf "SPLICE DAG%0${numZeros}d $dagFileInDir\n" $jobNum >> "$dagFile"
   fi
-  echo "[End]  $taskScript"
+  echo "[End]  $taskScript for $dirName"
   EchoLineSh
 done < "$selectJobsListPath"
 
@@ -123,11 +108,11 @@ PrintfLine >> "$dagFile"
 printf "# [End]  Description of $dagFile\n" >> "$dagFile"
 PrintfLine >> "$dagFile"
 
-exit 1
+
 ## Collect output together in case of condor
 # Create tar.gz file of everything inside $jobsDir folder
-tarName="${dagFile%.*}.tar.gz" #delete extension
-tar -czf "$tarName" "jobsDir"
+tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
+tar -czf "$tarName" "$jobsDir"
 
 # Has to hide all unnecessary files in tmp directories 
 dirTmp=$(mktemp -dq tmpXXXX)
@@ -140,7 +125,7 @@ echo "[End]  $curScrName"
 EchoLine
 
 if [[ $jobNum -eq 0 ]]; then
-    ErrMsg "Error! 0 jobs are queued by $taskScript"
+    ErrMsg "0 jobs are queued by $taskScript"
 fi
 
 exit 0
