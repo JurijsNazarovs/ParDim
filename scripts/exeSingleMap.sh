@@ -31,7 +31,7 @@ taskScript=${1} #script to create dag (dagMaker)
 argsFile=${2}
 dagFile=${3:-"tmp.dag"} #path to output dag, with independent jobs
 resPath=${4:-""} #resutls are written here. Should be the full path
-
+isCondor=${5:-false}
 
 ## Prepare working directories
 jobsDir="${dagFile%.*}Tmp"
@@ -56,14 +56,16 @@ fi
 
 
 ## Collect output together
-# Create tar.gz file of everything inside $jobsDir folder
-tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
-tar -czf "$tarName" "$jobsDir"
-ls
-# Has to hide all unnecessary files in tmp directories 
-dirTmp=$(mktemp -dq tmpXXXX)
-mv !("$dirTmp") "$dirTmp"
-mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
+if [[ "$isCondor" = true ]]; then
+    # Create tar.gz file of everything inside $jobsDir folder
+    tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
+    tar -czf "$tarName" "$jobsDir"
+    ls
+    # Has to hide all unnecessary files in tmp directories 
+    dirTmp=$(mktemp -dq tmpXXXX)
+    mv !("$dirTmp") "$dirTmp"
+    mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
+fi
 
 ## End
 echo "[End]  $taskScript"

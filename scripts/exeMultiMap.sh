@@ -23,8 +23,6 @@
 #	- selectJobsTabPath path to table with dirs to execute
 #	- isCondor	false - no condor, true - condor. Default is true
 #==============================================================================
-ls
-pwd
 ## Libraries, input arguments
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
@@ -41,6 +39,7 @@ dagFile=${3:-"tmp.dag"} #path to output splice, with dags for every directory
 resPath=${4:-""} #resutls are written here. Should be the full path
 selectJobsListInfo=${5-""} #file with all information about directories
 selectJobsListPath=${6:-""} #path to list of dirs to execute
+isCondor=${7:-false}
 
 
 ## Create main DAG file, which contains all DAG jobs for every "right" folder & error file
@@ -62,7 +61,7 @@ jobNum=0 #counter of executable jobs.
 jobsDir="analysedDirectories"
 
 while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-  dirName="${dirPath##*/}"
+  dirName="$(basename $dirPath)"
   curJobDir="$jobsDir/$dirName"
   mkdir -p "$curJobDir"
   dagFileInDir="$curJobDir/${dagFile%.*}_$dirName.${dagFile##*.}"
@@ -70,14 +69,14 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
 
   # Define file with content of dirPath
   awk -F "\n"\
-      -v curLine="$dirPath:"\
+      -v curLine="^$dirPath.*:$"\
       -v nextLine="^/.*:$"\
       '{
-        if ($0 ~ curLine) {f = 1; next}
-        if ($0 ~ nextLine) {f = 0}
+        if ($0 ~ curLine) {f = 1}
+        if ($0 ~ nextLine && $0 !~ curLine) {f = 0}
         if (f == 1 && NF) {print}
        }' "$selectJobsListInfo" > "$fileWithContent"
-  
+  exit 1
   # Execute script to create a dag file
   EchoLineSh
   echo "[Start]	$taskScript for $dirName"
@@ -110,15 +109,16 @@ PrintfLine >> "$dagFile"
 
 
 ## Collect output together in case of condor
-# Create tar.gz file of everything inside $jobsDir folder
-tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
-tar -czf "$tarName" "$jobsDir"
+if [[ "$isCondor" = true ]]; then
+    # Create tar.gz file of everything inside $jobsDir folder
+    tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
+    tar -czf "$tarName" "$jobsDir"
 
-# Has to hide all unnecessary files in tmp directories 
-dirTmp=$(mktemp -dq tmpXXXX)
-mv !("$dirTmp") "$dirTmp"
-mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
-
+    # Has to hide all unnecessary files in tmp directories 
+    dirTmp=$(mktemp -dq tmpXXXX)
+    mv !("$dirTmp") "$dirTmp"
+    mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
+fi
 
 ## End
 echo "[End]  $curScrName"

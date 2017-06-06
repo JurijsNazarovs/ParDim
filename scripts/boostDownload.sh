@@ -283,7 +283,7 @@ done
 conOut="$jobsDir/conOut"
 mkdir -p "$conOut"
 
-conFile="$jobsDir/downloadFiles.condor"
+conFile="$jobsDir/${curScrName%.*}.condor"
 bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$exePath"\
      "\$(args)" "" "1" "1" "\$(downSize)" "\$(transOut)" "\$(transMap)"
 iter=1 #number of downloading files				

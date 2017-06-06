@@ -50,9 +50,15 @@ FillListOfContent(){
   local outFile="$2"
   ChkEmptyArgs "inpFile" "outFile"
 
-  printf > "$outFile"
+  printf ""  > "$outFile"
   while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-    ls -R "$dirPath" >> "$outFile"
+    ls -lR "$dirPath" |
+        awk\
+    '{
+        if ($0 ~ "total.*") {next}
+        if (NF > 2) {print $9 "\t" $5}
+        if (NF == 1) {print}
+     }' >> "$outFile"
   done < "$inpFile"
 }
 

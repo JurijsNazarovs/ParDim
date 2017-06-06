@@ -22,16 +22,6 @@
 #	- idroverlap 
 # Input:
 #	- argsFile	 file with all arguments for this shell
-#	- inpPath	 directory, which we analyze
-#	- jobsFile	 file, which we create (dag description) for
-#	                 specific folder.
-#	- scriptsPath    path with all scripts for pipeline.
-#                        Important to provide it since, once we execute
-#                        this script in condor, we need to create 
-#			 new condor files with right path for scripts in
-#			 respect of submitting machine (main machine). Because,
-#                        these new condor files will be submitted again
-#                        from submitting machine. 
 #
 # Possible arguments are described in a section: ## Default values		
 #==============================================================================
@@ -57,7 +47,8 @@ isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
 
 ## Default values, which can be read from the $argsFile
 posArgs=("outPath" "firstStage" "lastStage" "trueRep" "coresNum"
-	 "specName" "specList" "specTar" "ctlDepthRatio" "isAlligned")
+	 "specName" "specList" "specTar" "ctlDepthRatio" "isAlligned"
+         "exePath")
 
 #rewrite stages!
 firstStage="2"		#starting stage of the pipeline 
@@ -68,7 +59,8 @@ specName="hg19"		#names of species: hg38, hg19, mm10, mm9
 specList="spec.list"	#list with all species
 specTar="spec.tar.gz"	#tar files w/ all species files
 ctlDepthRatio="1.2"	#ratio to compare ctl files to pool
-isAlligned="true"		#continue pipeline or run from scratch
+isAlligned="true"	#continue pipeline or run from scratch
+exePath="$homePath/exeAquas.sh"
 
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
@@ -117,67 +109,78 @@ idrOverlapStage=$(mapStage "$idrName$overlapName")
 
 
 ## Detect reps and ctls
+requirSize=0
+inpPath="$(awk 'NR==1{print $1; exit}' "$inpDataInfo")"
+inpPath="${inpPath%:}"
 if [[ "$isAlligned" = true ]]; then
     inpExt="tagAlign.gz"
-    inpPath="align"
+    inpPathTmp="$inpPath"align
     inpType=("rep" "ctl") #names of searched dirs with data
 
     for i in "${inpType[@]}"; do
-      readarray -t inpName <<<\
+      readarray -t inpDir <<<\
                 "$(awk -F "\n"\
-                       -v pattern=".*$inpPath/$i[0-9]*:$"\
+                       -v pattern="^$inpPathTmp/$i[0-9]*:$"\
                        '{ if ($0 ~ pattern) {print $0} }' "$inpDataInfo"
                  )"
-      inpNum=${#inpName[@]}
-      
+      inpNum=${#inpDir[@]}
+
       if [[ $inpNum -eq 0 ]]; then 
 	  ErrMsg "Number of $i files equals to 0."
       else
-        for j in "${!inpName[@]}"; do
+        for j in "${!inpDir[@]}"; do
           readarray -t strTmp <<< \
-                    "$(awk -F "\n"\
-                         -v dir="${inpName[$j]}"\
+                    "$(awk -F "\t"\
+                         -v dir="${inpDir[$j]}"\
                          -v file="$inpExt$"\
                          '{ 
                             if ($0 ~ dir) {f = 1; next}
                             if ($0 ~ "^/.*:$") {f = 0}
-                            if (f == 1 && $0 ~ file) {print} 
+                            if (f == 1 && $1 ~ file) {print $0} 
                           }' "$inpDataInfo"
-                  )"
-          
-	  strTmp=("${strTmp[@]%.$inpExt}") 
+                    )"
+	  
 	  if [[ ${#strTmp[@]} -ne 1 ]]; then
-	      ErrMsg "Cannot detect replicate name from ${inpName[$j]}"
-	  else
-	    eval $i"Name[\"$j\"]=\"$strTmp\""  #repName
+	      ErrMsg "Cannot detect replicate name from ${inpDir[$j]}"
+	  else #just one possible file in directory
+            strTmp=(${strTmp[@]})
+            requirSize=$((requirSize + strTmp[1]))
+	    eval $i"Name[\"$j\"]=${inpDir[$j]%:}/\"${strTmp[0]}\""  #repName
           fi
         done
         eval $i"Num=\${#"$i"Name[@]}" #repNum
       fi
     done
 else  #have to allign in this pipeline
-  inpExt="bam"
+  inpExt="bed.gz" #bam
   inpType=("rep" "ctl") #names of searched dirs with data
   posEnd=("ctl" "dnase")
 
   for i in "${inpType[@]}"; do
     if [[ "$i" != "rep" ]]; then
-        inpExtTmp="$i.$inpExt"
+        inpExtTmp=".$i.$inpExt"
+        readarray -t inpName <<<\
+                  "$(awk -F "\t"\
+                     -v file="$inpExtTmp$"\
+                    '{ if ($1 ~ file && NF > 1) {print $0} }' "$inpDataInfo"
+                  )"
+    else
+      posEndTmp=."$(JoinToStr ".|." "${posEnd[@]}")."
+      readarray -t inpName <<<\
+                "$(awk -F "\t"\
+                       -v file="$posEndTmp"\
+                       -v ext="$inpExt$"\
+                       '{ if ($1 !~ file && $1 ~ ext && NF > 1) {print $0} }'\
+                        "$inpDataInfo"
+                 )"
     fi
 
-    readarray -t inpName <<<\
-              "$(awk -F "\n"\
-                     -v file="$inpExtTmp"\
-                    '{ if ($0 ~ file) {print $0} }' "$inpDataInfo"
-               )"
-    
-    inpName=("${inpName[@]%.$inpExt}")
-    if [[ "$i" = "rep" ]]; then
-        for j in "${posEnd[@]}"; do
-          inpName=(${inpName[@]%%*.$j}) #delete lines containing posEnd
-        done
-    fi
-    eval $i"Name=(\"\${inpName[@]}\")" #repName
+    # Fill variables with full path to files and size
+    for j in "${!inpName[@]}"; do
+      strTmp=(${inpName[$j]})
+      requirSize=$((requirSize + strTmp[1]))
+      eval $i"Name[\"$j\"]=$inpPath\"${strTmp[0]}\""
+    done
     eval $i"Num=\${#inpName[@]}" #repNum
   done
 fi
@@ -193,67 +196,44 @@ if !([[ "$ctlNum" -eq 0 || "$ctlNum" -eq 1 || "$ctlNum" -eq "$repNum" ]]); then
 fi
 
 
-exit 1
-#IT HAS TO BE SOMEWHERE inpFiles=("$inpPath"/*) #files to calculate memory. Use folders
-
-## Condor files
-jobArgsFileVar="argsFile" #variable in condor jobs
-#which is used to pass file with arguments for specific job to condor.
-#For example, if jobArgsFileVar="argsFile", then
-#DAG: argsFile="tag.args"; CONDOR: arguments = '$(argsFile)'
-jobArgsFile=() 		  #file with arguments for every condor job corresponding to name of condor job
-#example: xcor1.args
-
-# Create output folder for condor log files
-conOut="$jobsDir/conOut"
-mkdir -p "$conOut"
-
-# Calculate right ammount of memory, based on input files
-
-hd=$(du -c ${inpFiles[@]} | tail -1 | cut -f 1) #size in kilobytes
-hd=$((hd*1)) #increase this size in 1 times
-hd=$(echo $hd/1024^2 + 1 | bc) #in GB rounded to bigger integer
+## Condor
+# Calculate required memory, based on input files
+hd=$requirSize #size in kilobytes
+hd=$((hd*1)) #increase size in 1 times
+hd=$(echo $hd/1024^2 + 1 | bc) #in GB rounded to a bigger integer
 ram=$((1*hd)) #just in case.
 ram=$(max $ram 13) #get at least 10GB
 ram=$(min $ram 32) #get the most 32GB 
 
-hd=$((hd+3+2)) # +3gb for installation files +2gb for safety
-
-
-# Get current script name, to use in Condor name
-strTmp=${0%/} #delete last backSlash
-strTmp=${strTmp##*/} #delete all before last backSlash
-strTmp=${strTmp%.*} #delete extension
-
-# Transfered files
-transFiles=("$jobsDir/\$($jobArgsFileVar)" "$specTar" "$specList"\
-	                                     "http://proxy.chtc.wisc.edu/SQUID/nazarovs/pipeInstallFiles.tar.gz")
-transFiles=$(joinToStr ", " ${transFiles[@]})
+hd=$((hd+3+2)) #+3gb for installation files +2gb for safety
 
 # Arguments for condor job
+jobArgsFile #file filled with argumetns for every condor job, e.g. xcor1.args
+jobArgsFileVar="argsFile" #variable
+#E.g. DAG: argsFile="tag.args"; Condor: arguments = '$(argsFile)'
 argsCon=("\$($jobArgsFileVar)" "$specName" "${specList##*/}" "${specTar##*/}")
-argsCon=$(joinToStr "\' \'" ${argsCon[@]})
+argsCon=$(joinToStr "\' \'" "${argsCon[@]}")
 
-# Create condor files depending on number of cores: 1Core and NCores
-con1Core="$jobsDir/1Core_$strTmp.condor" #for jobs with just one core
-bash "$homePath"/makeCon.sh "$con1Core" "$conOut" "$scriptsPath/exeAquas.sh"\
+# Output directory for condor log files
+conOut="$jobsDir/conOut"
+mkdir -p "$conOut"
+
+# Transfered files
+transFiles=("$jobsDir/\$($jobArgsFileVar)"
+            "$specTar"
+            "$specList"
+	    "http://proxy.chtc.wisc.edu/SQUID/nazarovs/pipeInstallFiles.tar.gz")
+transFiles=$(joinToStr ", " "${transFiles[@]}")
+
+# Main condor file
+conFile="$jobsDir/${curScrName%.*}.condor"
+bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$exePath"\
      "$argsCon" "$transFiles"\
-     "1" "$ram" "$hd"
+     "\$(nCores)" "$ram" "$hd" "\$(transOut)" "\$(transMap)"
 
-if [ "$coresNum" = "1" ]; then
-    conNCore="$con1Core" #for jobs with just N cores
-else
-  conNCore="$jobsDir/NCore_$strTmp.condor" 
-  bash "$homePath"/makeCon.sh "$conNCore" "$conOut" "$scriptsPath/exeAquas.sh"\
-       "$argsCon" "$transFiles"\
-       "$coresNum" "$ram" "$hd"
-fi
-
-
+## STOP HERE
 ## Decision of using pool ctl or not
 if [[ "$lastStage" -gt "$tagStage" ]]; then
-
-
     # Variables for future refences in pool and peaks, namely tags.
     useCtlPool=() #whether ctl[i]=pool or not
     for ((i=0; i<$ctlNum; i++))
@@ -262,7 +242,7 @@ if [[ "$lastStage" -gt "$tagStage" ]]; then
     done
 
     inpExt="tagAlign.gz"
-    ctlTag=() # array
+    ctlTag=() #array
 
     # Ctl
     for ((i=0; i<$ctlNum; i++))
@@ -355,10 +335,10 @@ if [[ "$lastStage" -gt "$tagStage" ]]; then
 fi
 
 
-## Start the $jobsFile
-printfLine > $jobsFile 
-printf "# [Start] Description of $jobsFile\n" >> $jobsFile
-printfLine >> $jobsFile
+## Start the "$dagFile"
+printfLine > "$dagFile" 
+printf "# [Start] Description of $dagFile\n" >> "$dagFile"
+printfLine >> "$dagFile"
 
 
 ## toTag
@@ -366,9 +346,9 @@ printfLine >> $jobsFile
 if [[ "$firstStage" -le "$tagStage" && "$lastStage" -ge "$tagStage" ]]; then	
     jobName=$tagName
 
-    printfLine >> $jobsFile
-    printf "# $jobName\n" >> $jobsFile 
-    printfLine >> $jobsFile
+    printfLine >> "$dagFile"
+    printf "# $jobName\n" >> "$dagFile" 
+    printfLine >> "$dagFile"
     
     # Create the dag file
     for ((i=0; i<=1; i++)) #0 - rep, 1 - ctl 
@@ -388,12 +368,12 @@ if [[ "$firstStage" -le "$tagStage" && "$lastStage" -ge "$tagStage" ]]; then
 	jobId="$jobName$labelTmp$j"
 	jobArgsFile=("$jobsDir/$jobId.args")
 
-	printfLineSh >> $jobsFile
-	printf "# $jobId\n" >> $jobsFile
-	printfLineSh >> $jobsFile
+	printfLineSh >> "$dagFile"
+	printf "# $jobId\n" >> "$dagFile"
+	printfLineSh >> "$dagFile"
 
-	printf "JOB $jobId $conNCore\n" >> $jobsFile
-	printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> $jobsFile
+	printf "JOB $jobId $conNCore\n" >> "$dagFile"
+	printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> "$dagFile"
 	# args file
 	printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
 	printf -- "-out_dir\t\t$outPath\n" >> $jobArgsFile
@@ -407,65 +387,65 @@ if [[ "$firstStage" -le "$tagStage" && "$lastStage" -ge "$tagStage" ]]; then
 	# Parent & Child dependency
 	# xcor
 	if [[ "$i" -eq "0" && "$lastStage" -ge "$xcorStage" ]]; then #i.e. rep
-	    printf "PARENT $jobId CHILD xcor$j\n" >> $jobsFile
+	    printf "PARENT $jobId CHILD xcor$j\n" >> "$dagFile"
 	fi
 	
 	# pool
 	if [[ "$lastStage" -ge "$poolStage" && "$repNum" -ge "2" && \
 		  !("$i" = "1" && "$ctlNum" -le "1") ]]; then
 	    if [ "$i" -eq "0" ]; then
-		printf "PARENT $jobId CHILD ${poolName}Pr0 " >> $jobsFile
+		printf "PARENT $jobId CHILD ${poolName}Pr0 " >> "$dagFile"
 		for ((k=1; k<=$prNum; k++))
 		do
-		  printf "${poolName}Pr$k " >> $jobsFile
+		  printf "${poolName}Pr$k " >> "$dagFile"
 		done
-		printf "\n" >> $jobsFile
+		printf "\n" >> "$dagFile"
 	    else
-	      printf "PARENT $jobId CHILD ${poolName}Ctl\n" >> $jobsFile
+	      printf "PARENT $jobId CHILD ${poolName}Ctl\n" >> "$dagFile"
 	    fi
 	fi
 
 	# peak
 	if [ "$lastStage" -ge "$peakStage" ]; then
 	    if [[ "$i" = "1" && "$ctlNum" -eq "1" && "$repNum" -ge "2" ]]; then
-		printf "PARENT $jobId CHILD " >> $jobsFile
+		printf "PARENT $jobId CHILD " >> "$dagFile"
 		#i.e. we have 1 ctl and several replicates
 		for ((s=0; s<=$repNum; s++)) #write all replicate peaks, including pooled as child
 		do
 		  for ((k=0; k<=$prNum; k++)) #go throw pseudo
 		  do				
-		    printf "${peakName}Rep${s}Pr$k " >> $jobsFile
+		    printf "${peakName}Rep${s}Pr$k " >> "$dagFile"
 		  done
 		done
-		printf "\n" >> $jobsFile
+		printf "\n" >> "$dagFile"
 	    else #means that number of ctl = number or reps and > 1
 	      if [[ !("$i" = 1 && "${useCtlPool[$((j-1))]}" = "true") ]]; then
-		  printf "PARENT $jobId CHILD " >> $jobsFile
+		  printf "PARENT $jobId CHILD " >> "$dagFile"
 		  for ((k=0; k<=$prNum; k++)) #go throw pseudo
 		  do				
-		    printf "${peakName}Rep${j}Pr$k " >> $jobsFile
+		    printf "${peakName}Rep${j}Pr$k " >> "$dagFile"
 		  done
 	      fi
 	    fi
-	    printf "\n" >> $jobsFile
+	    printf "\n" >> "$dagFile"
 	fi
 
 	# stgMacs
 	if [ "$lastStage" -ge "$stgStage" ]; then
 	    if [[ "$i" = "1" && "$ctlNum" -eq "1" && "$repNum" -ge "2" ]]; then
-		printf "PARENT $jobId CHILD " >> $jobsFile
+		printf "PARENT $jobId CHILD " >> "$dagFile"
 		#i.e. we have 1 ctl and several replicates
 		for ((s=0; s<=$repNum; s++)) #write all replicate peaks, including pooled as child
 		do
-		  printf "${stgName}Rep${s} " >> $jobsFile
+		  printf "${stgName}Rep${s} " >> "$dagFile"
 		done
-		printf "\n" >> $jobsFile
+		printf "\n" >> "$dagFile"
 	    else #means that number of ctl = number or reps and > 1
 	      if [[ !("$i" = 1 && "${useCtlPool[$((j-1))]}" = "true") ]]; then
-		  printf "PARENT $jobId CHILD ${stgName}Rep${j}" >> $jobsFile
+		  printf "PARENT $jobId CHILD ${stgName}Rep${j}" >> "$dagFile"
 	      fi
 	    fi
-	    printf "\n" >> $jobsFile
+	    printf "\n" >> "$dagFile"
 	fi
       done
     done
@@ -476,9 +456,9 @@ fi
 if [[ $firstStage -le $pseudoStage && $lastStage -ge $pseudoStage && "$trueRep" == "false" ]]; then
     jobName="$pseudoName" 
 
-    printfLine >> $jobsFile
-    printf "# $jobName\n" >> $jobsFile 
-    printfLine >> $jobsFile
+    printfLine >> "$dagFile"
+    printf "# $jobName\n" >> "$dagFile" 
+    printfLine >> "$dagFile"
     
     # Create the dag file	
     for ((j=1; j<=$repNum; j++))
@@ -486,12 +466,13 @@ if [[ $firstStage -le $pseudoStage && $lastStage -ge $pseudoStage && "$trueRep" 
       jobId="${jobName}Rep$j"
       jobArgsFile=("$jobsDir/$jobId.args")
 
-      printfLineSh >> $jobsFile
-      printf "# $jobId\n" >> $jobsFile
-      printfLineSh >> $jobsFile
+      printfLineSh >> "$dagFile"
+      printf "# $jobId\n" >> "$dagFile"
+      printfLineSh >> "$dagFile"
 
-      printf "JOB $jobId $con1Core\n" >> $jobsFile
-      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> $jobsFile
+      printf "JOB $jobId $conFile\n" >> "$dagFile"
+      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> "$dagFile"
+      printf "VARS $jobId nCores=1\n" >> "$dagFile"
       # args file
       printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
       printf -- "-out_dir\t\t$outPath\n" >> $jobArgsFile
@@ -503,23 +484,23 @@ if [[ $firstStage -le $pseudoStage && $lastStage -ge $pseudoStage && "$trueRep" 
       
       # pool
       if [[ $lastStage -ge $poolStage && "$repNum" -ge "2" ]]; then
-	  printf "PARENT $jobId CHILD " >> $jobsFile
+	  printf "PARENT $jobId CHILD " >> "$dagFile"
 	  for ((k=1; k<=$prNum; k++))
 	  do
-	    printf "${poolName}Pr$k " >> $jobsFile
+	    printf "${poolName}Pr$k " >> "$dagFile"
 	  done
-	  printf "\n" >> $jobsFile
+	  printf "\n" >> "$dagFile"
       fi
 
       # peak
       if [[ $lastStage -ge $peakStage && $ctlNum -ge 1 ]]; then
-	  printf "PARENT $jobId CHILD " >> $jobsFile
+	  printf "PARENT $jobId CHILD " >> "$dagFile"
 	  for ((k=1; k<=$prNum; k++)) #go throw pseudo
 	  do				
-	    printf "${peakName}Rep${j}Pr$k " >> $jobsFile
+	    printf "${peakName}Rep${j}Pr$k " >> "$dagFile"
 	  done
 
-	  printf "\n" >> $jobsFile
+	  printf "\n" >> "$dagFile"
       fi
     done
 fi
@@ -530,9 +511,9 @@ if [[ "$firstStage" -le "$xcorStage" && "$lastStage" -ge "$xcorStage" ]]; then
     jobName=$xcorName
     inpExt="tagAlign.gz"
 
-    printfLine >> $jobsFile
-    printf "# $jobName\n" >> $jobsFile 
-    printfLine >> $jobsFile
+    printfLine >> "$dagFile"
+    printf "# $jobName\n" >> "$dagFile" 
+    printfLine >> "$dagFile"
     
     # Create the dag file
     for ((i=1; i<=$repNum; i++))
@@ -540,13 +521,14 @@ if [[ "$firstStage" -le "$xcorStage" && "$lastStage" -ge "$xcorStage" ]]; then
       jobId="$jobName$i"
       jobArgsFile=("$jobsDir/$jobId.args")
 
-      printfLineSh >> $jobsFile
-      printf "# $jobId\n" >> $jobsFile
-      printfLineSh >> $jobsFile
+      printfLineSh >> "$dagFile"
+      printf "# $jobId\n" >> "$dagFile"
+      printfLineSh >> "$dagFile"
 
-      #printf "JOB $jobId $conNCore\n" >> $jobsFile
-      printf "JOB $jobId $con1Core\n" >> $jobsFile
-      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> $jobsFile
+      #printf "JOB $jobId $conNCore\n" >> "$dagFile"
+      printf "JOB $jobId $conFile\n" >> "$dagFile"
+      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> "$dagFile"
+      printf "VARS $jobId nCores=1\n" >> "$dagFile"
       
       # args file
       printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
@@ -559,32 +541,32 @@ if [[ "$firstStage" -le "$xcorStage" && "$lastStage" -ge "$xcorStage" ]]; then
       # Parent & Child dependency
       # peak
       if [[ "$lastStage" -ge "$peakStage" && $ctlNum -ge 1 ]]; then
-	  printf "PARENT $jobId CHILD " >> $jobsFile
+	  printf "PARENT $jobId CHILD " >> "$dagFile"
 
 	  if [ "$repNum" -gt "1" ]; then #pooled peak
 	      for ((j=0; j<=$prNum; j++)) #go throw pseudo
 	      do				
-		printf "${peakName}Rep0Pr$j " >> $jobsFile
+		printf "${peakName}Rep0Pr$j " >> "$dagFile"
 	      done
 	  fi
 
 	  for ((j=0; j<=$prNum; j++)) #go throw pseudo #replicate peak
 	  do				
-	    printf "${peakName}Rep${i}Pr$j " >> $jobsFile
+	    printf "${peakName}Rep${i}Pr$j " >> "$dagFile"
 	  done
-	  printf "\n" >> $jobsFile
+	  printf "\n" >> "$dagFile"
       fi
 
       # stgMacs
       if [[ "$lastStage" -ge "$stgStage" && $ctlNum -ge 1 ]]; then
-	  printf "PARENT $jobId CHILD " >> $jobsFile
+	  printf "PARENT $jobId CHILD " >> "$dagFile"
 
 	  if [ "$repNum" -gt "1" ]; then #pooled peak				
-	      printf "${stgName}Rep0 " >> $jobsFile
+	      printf "${stgName}Rep0 " >> "$dagFile"
 	  fi
 	  
-	  printf "${stgName}Rep${i}" >> $jobsFile
-	  printf "\n" >> $jobsFile
+	  printf "${stgName}Rep${i}" >> "$dagFile"
+	  printf "\n" >> "$dagFile"
       fi
     done
 fi
@@ -596,9 +578,9 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" && "$repNu
     inpExt="tagAlign.gz"
     jobArgsFile=() #here we have several arguments files
 
-    printfLine >> $jobsFile
-    printf "# $jobName\n" >> $jobsFile 
-    printfLine >> $jobsFile
+    printfLine >> "$dagFile"
+    printf "# $jobName\n" >> "$dagFile" 
+    printfLine >> "$dagFile"
 
     # Reps and PR
 
@@ -642,25 +624,26 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" && "$repNu
       jobId="${jobArgsFile[i]##*/}" #take the name from the argFile with format
       jobId="${jobId%.*}" #delete format
 
-      printfLineSh >> $jobsFile
-      printf "# $jobId\n" >> $jobsFile
-      printfLineSh >> $jobsFile
+      printfLineSh >> "$dagFile"
+      printf "# $jobId\n" >> "$dagFile"
+      printfLineSh >> "$dagFile"
 
-      printf "JOB $jobId $con1Core\n" >> $jobsFile
-      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> $jobsFile
+      printf "JOB $jobId $conFile\n" >> "$dagFile"
+      printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> "$dagFile"
+      printf "VARS $jobId nCores=1\n" >> "$dagFile"
       
       # Parent & Child dependency
       # peak
       if [[ "$lastStage" -ge "$peakStage" && $ctlNum -ge 1 ]]; then
-	  printf "PARENT $jobId CHILD " >> $jobsFile
+	  printf "PARENT $jobId CHILD " >> "$dagFile"
 
 	  if [ "$i" -lt "$((${#jobArgsFile[@]} - 1))" ]; then #pr part
-	      printf "${peakName}Rep0Pr$i " >> $jobsFile
+	      printf "${peakName}Rep0Pr$i " >> "$dagFile"
 	  else 
 	    if [ "$ctlNum" -ge "2" ]; then #ctl part
 		for ((j=0; j<=$prNum; j++)) #go throw pooled pseudo peaks
 		do
-		  printf "${peakName}Rep0Pr$j " >> $jobsFile
+		  printf "${peakName}Rep0Pr$j " >> "$dagFile"
 		done
 		
 		# Peaks of reps, where ctl = pool
@@ -670,36 +653,36 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" && "$repNu
 		      for ((k=0; k<=$prNum; k++)) #go throw pooled pseudo peaks
 		      do
 			printf "${peakName}Rep$((j+1))Pr$k "\
-			       >> $jobsFile
+			       >> "$dagFile"
 		      done
 		  fi
 		done
 	    else #last pr part
-	      printf "${peakName}Rep0Pr$i " >> $jobsFile 
+	      printf "${peakName}Rep0Pr$i " >> "$dagFile" 
 	    fi
 	  fi
-	  printf "\n" >> $jobsFile
+	  printf "\n" >> "$dagFile"
       fi
 
       # stgMacs2
       if [[ "$lastStage" -ge "$stgStage" && $ctlNum -ge 1 ]]; then
 	  if [ "$i" -eq "0" ]; then
-	      printf "PARENT $jobId CHILD ${stgName}Rep0" >> $jobsFile
+	      printf "PARENT $jobId CHILD ${stgName}Rep0" >> "$dagFile"
 	  fi
 
 	  if [[ "$i" = "$((${#jobArgsFile[@]} - 1))" && "$ctlNum" -ge "2" ]]; then #ctl part
-	      printf "PARENT $jobId CHILD " >> $jobsFile
-	      printf "${stgName}Rep0 " >> $jobsFile
+	      printf "PARENT $jobId CHILD " >> "$dagFile"
+	      printf "${stgName}Rep0 " >> "$dagFile"
 
 	      # Peaks of reps, where ctl = pool
 	      for ((j=0; j<$ctlNum; j++))
 	      do
 		if [ "${useCtlPool[$j]}" = "true" ]; then	
-		    printf "${stgName}Rep$((j+1)) " >> $jobsFile
+		    printf "${stgName}Rep$((j+1)) " >> "$dagFile"
 		fi
 	      done
 	  fi
-	  printf "\n" >> $jobsFile
+	  printf "\n" >> "$dagFile"
       fi
     done
 fi
@@ -727,9 +710,9 @@ do
 	prNumTmp=$prNum
       fi
 
-      printfLine >> $jobsFile
-      printf "# $jobName\n" >> $jobsFile 
-      printfLine >> $jobsFile
+      printfLine >> "$dagFile"
+      printf "# $jobName\n" >> "$dagFile" 
+      printfLine >> "$dagFile"
 
       # For reps
       for ((i=0; i<=$repNum; i++)) #0-pooled
@@ -791,9 +774,9 @@ do
 	fi
 
 	# Print jobs in the file		
-	printfLineSh >> $jobsFile
-	printf "# Rep$i\n" >> $jobsFile 
-	printfLineSh >> $jobsFile
+	printfLineSh >> "$dagFile"
+	printf "# Rep$i\n" >> "$dagFile" 
+	printfLineSh >> "$dagFile"
 
 	for ((j=0; j<=$prNumTmp; j++)) #go throw type of rep: rep, repPr1, repPr2, ...
 	do
@@ -802,13 +785,13 @@ do
 	  inpTmp[$j]=$(rmSp "${inpTmp[$j]}")
 	  
 
-	  #printf "JOB $jobIdTmp $conNCore\n" >> $jobsFile #original like this
-	  if [ "$stIter" = "$stgName" ]; then #string comparison
-	      printf "JOB $jobIdTmp $con1Core\n" >> $jobsFile
+	  printf "JOB $jobIdTmp $conNCore\n" >> "$dagFile" #original like this
+	  printf "VARS $jobIdTmp $jobArgsFileVar=\"$jobIdTmp.args\"\n" >> "$dagFile"
+          if [[ "$stIter" = "$stgName" ]]; then #string comparison
+	      printf "VARS $jobId nCores=1\n" >> "$dagFile"
 	  else
-	    printf "JOB $jobIdTmp $conNCore\n" >> $jobsFile
+	    printf "VARS $jobId nCores=$coresNum\n" >> "$dagFile"
 	  fi
-	  printf "VARS $jobIdTmp $jobArgsFileVar=\"$jobIdTmp.args\"\n" >> $jobsFile
 
 	  # args file
 	  printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
@@ -843,7 +826,7 @@ do
 	  # Parent & Child dependency
 	  if [[ "$lastStage" -ge "$idrOverlapStage" && "$stIter" != "$stgName" ]]; then
 	      printf "PARENT $jobIdTmp CHILD $idrName $overlapName\n\n"\
-		     >> $jobsFile
+		     >> "$dagFile"
 	  fi
 	done
       done
@@ -945,13 +928,14 @@ if [[ $firstStage -le $idrOverlapStage && $lastStage -ge $idrOverlapStage && $ct
     jobId=($idrName $overlapName)
     for jobName in "${jobId[@]}"
     do
-      printfLine >> $jobsFile
-      printf "# $jobName\n" >> $jobsFile 
-      printfLine >> $jobsFile
+      printfLine >> "$dagFile"
+      printf "# $jobName\n" >> "$dagFile" 
+      printfLine >> "$dagFile"
 
       jobArgsFile=("$jobsDir/$jobName.args")
-      printf "JOB $jobName $con1Core\n" >> $jobsFile
-      printf "VARS $jobName $jobArgsFileVar=\"$jobName.args\"\n\n" >> $jobsFile
+      printf "JOB $jobName $conFile\n" >> "$dagFile"
+      printf "VARS $jobName $jobArgsFileVar=\"$jobName.args\"\n\n" >> "$dagFile"
+      printf "VARS $jobId nCores=1\n" >> "$dagFile"
       
       cp "$jobArgsFileTmp" "$jobArgsFile"
       printf -- "script\t\t$jobName.bds\n" >> $jobArgsFile
@@ -965,9 +949,9 @@ fi
 #	jobName="stg"
 #	inpExt="bam"
 #
-#	printfLine >> $jobsFile
-#	printf "# $jobName\n" >> $jobsFile 
-#	printfLine >> $jobsFile
+#	printfLine >> "$dagFile"
+#	printf "# $jobName\n" >> "$dagFile" 
+#	printfLine >> "$dagFile"
 #			
 #	# Create the dag file
 #	inpExt="bam"
@@ -977,12 +961,12 @@ fi
 #		jobId="$jobName$i"
 #		jobArgsFile=("$jobsDir/$jobId.args")
 #
-#		printfLineSh >> $jobsFile
-#		printf "# $jobId\n" >> $jobsFile
-#		printfLineSh >> $jobsFile
+#		printfLineSh >> "$dagFile"
+#		printf "# $jobId\n" >> "$dagFile"
+#		printfLineSh >> "$dagFile"
 #
-#		printf "JOB $jobId $conNCore\n" >> $jobsFile
-#		printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> $jobsFile
+#		printf "JOB $jobId $conNCore\n" >> "$dagFile"
+#		printf "VARS $jobId $jobArgsFileVar=\"$jobId.args\"\n" >> "$dagFile"
 #		
 #		# args file
 #		printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
@@ -995,8 +979,8 @@ fi
 #fi
 
 ## End
-printfLine >> $jobsFile
-printf "# [End] Description of $jobsFile\n" >> $jobsFile
-printfLine >> $jobsFile
+printfLine >> "$dagFile"
+printf "# [End] Description of $dagFile\n" >> "$dagFile"
+printfLine >> "$dagFile"
 
 exit 0 #everything is ok

@@ -56,8 +56,10 @@ does not work there.
     collect them usint postScript
 [-] Combine single and multimap in one script with argument map to chose
 [-] Despite single or multiMap provide file with all input of previous result
-[+] Download has to be the first or single task 
-
+[+] Download has to be the first or single task
+[-] extension for input file as an argument in makeAquas.dag
+[-] line about 800. conFile provide number of cores of peaks and all other multi
+    core scripts
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
 

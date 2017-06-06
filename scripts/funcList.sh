@@ -711,8 +711,11 @@ PrintArgs(){
   EchoLineSh
   
   local i
+  local argSize
   for i in ${posArgs[@]}
   do
+    #eval argSize="\${#$i[@]}"
+    #echo "$argSize"
     eval "printf \"%-$((maxLenArg + 3))s %s \n\"\
                  \"- $i\" \"$"$i"\" "
   done
