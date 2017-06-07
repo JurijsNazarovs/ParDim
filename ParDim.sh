@@ -88,12 +88,14 @@ for i in "${taskPos[@]}"; do
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
+      posArgs=(script map transFiles args relResPath)
       script=""
       map=multi #if runs for every directory
       transFiles=""
       args="" #file with arguments (just one)
-      ReadArgs "$argsFile" 1 "$i" 4 "script" "map" "transFiles" "args"\
-               "map" > /dev/null
+      relResPath="" #path for results relative to the part of pipeline
+      ReadArgs "$argsFile" 1 "$i" ${#posArgs[@]} "${posArgs[@]}" "map"\
+               > /dev/null
 
       # Checking existence of scripts
       script="$(readlink -m "$script")" #whole path
@@ -130,12 +132,13 @@ for i in "${taskPos[@]}"; do
         args="$(readlink -m "$args")"
         ChkExist f "$args" "File with arguments for $i: $args\n"
       fi
-      
+
       # Assigning values to the corresponding script
       task["$nTask"]="$i"
       taskScript["$nTask"]="$script"
       taskMap["$nTask"]="$map"
       taskArgsFile["$nTask"]="$args"
+      taskRelResPath["$nTask"]="$relResPath"
       ((nTask ++))
   else
     if [[ "$execute" != false ]]; then
@@ -150,6 +153,18 @@ if [[ ${#task[@]} -eq 0 ]]; then
     ErrMsg "Pipeline is empty, i.e. no tasks are assigned.
             Execution halted."
 fi
+
+# Checking relResPath
+for i in "${taskRelResPath[@]}"; do
+  echo "$i"
+  if [[ -n $(RmSp "$i") ]]; then
+      if [[ -z "$(ArrayGetInd 1 "$i" "${task[@]}")" ]]; then
+          ErrMsg "relResPath: $i
+                 is not among queued tasks:
+                 $(JoinToStr ', ' "${task[@]}")"
+      fi
+  fi
+done
 
 # Checking duplication of scripts to give a warning
 readarray -t taskScriptDupl <<< "$(ArrayGetDupls "${taskScript[@]}")"
@@ -428,7 +443,11 @@ do
   if [[ "$jobId" = "$downloadTaskName" ]]; then
       resPathTmp="$dataPath"
   else
-    resPathTmp="$resPath/$jobId"
+    if [[ -z $(RmSp "${task[$i]}") ]]; then
+        resPathTmp="$resPath/$jobId"
+    else
+      resPathTmp="$resPath/${taskRelResPath[$i]}"
+    fi
   fi
   printf "VARS $jobId resPath=\"$resPathTmp\"\n"\
          >> "$pipeStructFile" #just a name

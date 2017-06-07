@@ -60,6 +60,8 @@ does not work there.
 [-] extension for input file as an argument in makeAquas.dag
 [-] line about 800. conFile provide number of cores of peaks and all other multi
     core scripts
+[+] make a relResPath to any of pipeline parts => the next part is running from
+    that path
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
 
