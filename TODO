@@ -62,6 +62,7 @@ does not work there.
     core scripts
 [+] make a relResPath to any of pipeline parts => the next part is running from
     that path
+[-?] add postscript to open files after multimap. 
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
 

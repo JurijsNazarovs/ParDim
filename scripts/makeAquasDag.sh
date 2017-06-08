@@ -37,8 +37,8 @@ curScrName=${0##*/} #delete last backSlash
 ### NEW INPUT
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
-dagFile=${2:-"download.dag"} #create this
-jobsDir=${3:-"downTmp"} #working directory, provided with one of analysed dirs
+dagFile=${2:-"aquas.dag"} #create this
+jobsDir=${3:-"aquasTmp"} #working directory, provided with one of analysed dirs
 resPath=${4:-""} #return on submit server. Can be read from file if empty
 inpDataInfo=${5} #text file with input data
 isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
@@ -46,7 +46,7 @@ isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
 
 
 ## Default values, which can be read from the $argsFile
-posArgs=("outPath" "firstStage" "lastStage" "trueRep" "coresNum"
+posArgs=("firstStage" "lastStage" "trueRep" "coresNum"
 	 "specName" "specList" "specTar" "ctlDepthRatio" "isAlligned"
          "exePath")
 
@@ -198,9 +198,9 @@ fi
 
 ## Condor
 # Calculate required memory, based on input files
-hd=$requirSize #size in kilobytes
+hd=$requirSize #size in bytes
 hd=$((hd*1)) #increase size in 1 times
-hd=$(echo $hd/1024^2 + 1 | bc) #in GB rounded to a bigger integer
+hd=$(echo $hd/1024^3 + 1 | bc) #in GB rounded to a bigger integer
 ram=$((1*hd)) #just in case.
 ram=$(max $ram 13) #get at least 10GB
 ram=$(min $ram 32) #get the most 32GB 

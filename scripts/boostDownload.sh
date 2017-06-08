@@ -36,7 +36,8 @@ argsFile=${1:-"args.listDev"}
 dagFile=${2:-"download.dag"} #create this
 jobsDir=${3:-"downTmp"} #working directory
 resPath=${4:-""} #return on submit server. Can be read from file if empty
-isCondor=${5:-"true"} #true => script is executed in Condor(executed server)
+isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
+
 ChkValArg "isCondor" "" "true" "false"
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"

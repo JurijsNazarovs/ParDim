@@ -29,12 +29,13 @@ echo "[Start] $curScrName"
 
 taskScript=${1} #script to create dag (dagMaker)
 argsFile=${2}
-dagFile=${3:-"tmp.dag"} #path to output dag, with independent jobs
+dagFile=${3:-"tmp.dag"} #name of output dag, with independent jobs
 resPath=${4:-""} #resutls are written here. Should be the full path
 isCondor=${5:-false}
+selectJobsListInfo=${6-""} #file with all information about directories
 
 ## Prepare working directories
-jobsDir="${dagFile%.*}Tmp"
+jobsDir="${dagFile%.*}Tmp" #content of jobsDir is sent to submit machine
 mkdir -p "$jobsDir"
 
 ## Execute script to create a dag file
@@ -45,7 +46,8 @@ bash "$taskScript"\
      "$argsFile"\
      "$dagFile"\
      "$jobsDir"\
-     "$resPath"
+     "$resPath"\
+     "selectJobsListInfo"
 exFl=$?
 
 if [[ "$exFl" -ne 0 ]]; then

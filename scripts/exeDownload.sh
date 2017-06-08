@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #========================================================
 # This is an execution file to download data and
 # move it in a right folder
@@ -13,6 +13,7 @@ path=${2:-"./"}
 delim=${3:-","} #use to split path
 delimJoin=${4:-";"} #use to split link
 outTar=$5 #tarFile to return back on submit machine
+isDry=${6:-true}
 
 
 ## Initial preparation
@@ -62,14 +63,15 @@ for filePath in "${path[@]}"; do
   fi
 done
 
-ls -R "$dirTmp"
 ## Prepare tar to move results back
 tar -czf "$outTar" -C "$dirTmp" .
 
 # Has to hide all unnecessary files in tmp directories 
-mv !("$dirTmp") "$dirTmp"
-mv "$dirTmp"/_condor_std* ./
-mv "$dirTmp/$outTar" ./
+if [[ "$isDry" = false ]]; then
+    mv !("$dirTmp") "$dirTmp"
+    mv "$dirTmp"/_condor_std* ./
+    mv "$dirTmp/$outTar" ./
+fi
 
 exit 0
 

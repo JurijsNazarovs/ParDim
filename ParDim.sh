@@ -347,6 +347,7 @@ conMapArgs=("\$(taskScript)" #variable - script name executed by map.script
             "\$(argsFile)" #variable
             "\$(dagFile)" #variable - output dag file name: jobsDir/map/dagName
             "\$(resPath)" #variable - partially path for results for task[i]
+            "true" #is script submit from executed machine
             "${selectJobsListInfo##*/}" #single and multi map
             "${selectJobsListPath##*/}" #multi map
            )
@@ -358,7 +359,7 @@ for i in "${!task[@]}"; do
   # Scripts used in mapping scripts
   strTmp="$scriptsPath/funcList.sh, $scriptsPath/makeCon.sh, \
          ${taskScript[i]}"
-  conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
+  conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}, $selectJobsListInfo"
   
   if [[ "${taskMap[$i]}" = multi ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
@@ -443,12 +444,17 @@ do
   if [[ "$jobId" = "$downloadTaskName" ]]; then
       resPathTmp="$dataPath"
   else
-    if [[ -z $(RmSp "${task[$i]}") ]]; then
+    if [[ -z $(RmSp "${taskRelResPath[$i]}") ]]; then
         resPathTmp="$resPath/$jobId"
     else
       resPathTmp="$resPath/${taskRelResPath[$i]}"
     fi
   fi
+  mkdir -p "$resPathTmp"
+  if [[ $? -ne 0 ]]; then
+      ErrMsg "Impossible to create $resPathTmp"
+  fi
+
   printf "VARS $jobId resPath=\"$resPathTmp\"\n"\
          >> "$pipeStructFile" #just a name
   

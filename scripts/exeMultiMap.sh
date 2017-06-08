@@ -37,9 +37,9 @@ taskScript=${1} #[R] script to create dag (dagMaker)
 argsFile=${2}  #[R] file w/ all arguments for this shell
 dagFile=${3:-"tmp.dag"} #path to output splice, with dags for every directory
 resPath=${4:-""} #resutls are written here. Should be the full path
-selectJobsListInfo=${5-""} #file with all information about directories
-selectJobsListPath=${6:-""} #path to list of dirs to execute
-isCondor=${7:-false}
+isCondor=${5:-false}
+selectJobsListInfo=${6-""} #file with all information about directories
+selectJobsListPath=${7:-""} #path to list of dirs to execute
 
 
 ## Create main DAG file, which contains all DAG jobs for every "right" folder & error file
@@ -66,7 +66,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
   mkdir -p "$curJobDir"
   dagFileInDir="$curJobDir/${dagFile%.*}_$dirName.${dagFile##*.}"
   fileWithContent="$curJobDir/fileWithContent_$dirName"
-
+ls; pwd
   # Define file with content of dirPath
   awk -F "\n"\
       -v curLine="^$dirPath.*:$"\
@@ -76,7 +76,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
         if ($0 ~ nextLine && $0 !~ curLine) {f = 0}
         if (f == 1 && NF) {print}
        }' "$selectJobsListInfo" > "$fileWithContent"
-  exit 1
+
   # Execute script to create a dag file
   EchoLineSh
   echo "[Start]	$taskScript for $dirName"
@@ -85,7 +85,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
        "$dagFileInDir"\
        "$curJobDir"\
        "$resPath"\
-       "selectJobsListInfo"
+       "$fileWithContent"
   exFl=$? #exit value of creating dag
 
   if [[ "$exFl" -ne 0 ]]; then
