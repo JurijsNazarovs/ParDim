@@ -23,9 +23,12 @@ diskSize=${8:-"10"}
 transOut=${9:-""}
 transMap=${10:-""}
 
-isRepeat=${11:-"true"} #1 - repeat in case of failure
+outName=${11:-"condor"}
+
+isRepeat=${12:-"true"} #1 - repeat in case of failure
 #isHold
-isGluster=${12:-"false"}
+isGluster=${14:-"false"}
+
 
 
 ## Initial checking
@@ -86,9 +89,9 @@ fi
 ## Output
 printf \
     "## Output
-output = $outPath/condor\$(Cluster).out
-error = $outPath/condor\$(Cluster).err
-log = $outPath/condor\$(Cluster).log
+output = $outPath/$outName\$(Cluster).out
+error = $outPath/$outName\$(Cluster).err
+log = $outPath/$outName\$(Cluster).log
 \n" >> "$conFile"
 
 
