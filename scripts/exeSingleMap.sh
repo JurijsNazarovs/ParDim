@@ -51,7 +51,10 @@ bash "$taskScript"\
 exFl=$?
 
 if [[ "$exFl" -ne 0 ]]; then
-    rm -rf "$curJobDir"
+    dirTmp=$(mktemp -dq tmpXXXX)
+    mv !("$dirTmp") "$dirTmp"
+    mv "$dirTmp"/_condor_std* ./
+    
     ErrMsg "The task $taskScript
            returns the eror: $exFl"
 fi

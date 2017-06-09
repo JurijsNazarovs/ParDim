@@ -66,7 +66,7 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
   mkdir -p "$curJobDir"
   dagFileInDir="$curJobDir/${dagFile%.*}_$dirName.${dagFile##*.}"
   fileWithContent="$curJobDir/fileWithContent_$dirName"
-ls; pwd
+
   # Define file with content of dirPath
   awk -F "\n"\
       -v curLine="^$dirPath.*:$"\
@@ -85,7 +85,8 @@ ls; pwd
        "$dagFileInDir"\
        "$curJobDir"\
        "$resPath"\
-       "$fileWithContent"
+       "$fileWithContent"\
+       "${taskScript%.*}_$dirName.tar.gz" #unique name for transfer output
   exFl=$? #exit value of creating dag
 
   if [[ "$exFl" -ne 0 ]]; then
@@ -108,24 +109,28 @@ printf "# [End]  Description of $dagFile\n" >> "$dagFile"
 PrintfLine >> "$dagFile"
 
 
-## Collect output together in case of condor
-if [[ "$isCondor" = true ]]; then
-    # Create tar.gz file of everything inside $jobsDir folder
-    tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
-    tar -czf "$tarName" "$jobsDir"
-
-    # Has to hide all unnecessary files in tmp directories 
+## End
+if [[ $jobNum -eq 0 ]]; then
     dirTmp=$(mktemp -dq tmpXXXX)
     mv !("$dirTmp") "$dirTmp"
-    mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
-fi
-
-## End
-echo "[End]  $curScrName"
-EchoLine
-
-if [[ $jobNum -eq 0 ]]; then
+    mv "$dirTmp"/_condor_std* "$dirTmp/$errFile" ./
     ErrMsg "0 jobs are queued by $taskScript"
-fi
+else
+  ## Collect output together in case of condor
+  if [[ "$isCondor" = true ]]; then
+      # Create tar.gz file of everything inside $jobsDir folder
+      tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
+      tar -czf "$tarName" "$jobsDir"
 
-exit 0
+      # Has to hide all unnecessary files in tmp directories 
+      dirTmp=$(mktemp -dq tmpXXXX)
+      mv !("$dirTmp") "$dirTmp"
+      mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile"\
+         "$dirTmp/$errFile" ./
+  fi
+
+  echo "[End]  $curScrName"
+  EchoLine
+
+  exit 0
+fi
