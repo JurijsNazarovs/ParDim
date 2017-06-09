@@ -155,9 +155,14 @@ if [[ ${#task[@]} -eq 0 ]]; then
 fi
 
 # Checking relResPath
+isDataPathInRelResPath=false # of time when relResPath = dataPath
 for i in "${taskRelResPath[@]}"; do
-  echo "$i"
   if [[ -n $(RmSp "$i") ]]; then
+      if [[ "$i" = dataPath && "$isDataPathInRelResPath" = false ]]; then
+          isDataPathInRelResPath=true
+          continue
+      fi
+      
       if [[ -z "$(ArrayGetInd 1 "$i" "${task[@]}")" ]]; then
           ErrMsg "relResPath: $i
                  is not among queued tasks:
@@ -165,6 +170,7 @@ for i in "${taskRelResPath[@]}"; do
       fi
   fi
 done
+
 
 # Checking duplication of scripts to give a warning
 readarray -t taskScriptDupl <<< "$(ArrayGetDupls "${taskScript[@]}")"
@@ -260,7 +266,7 @@ fi
 # Thus, if we have just download, then
 # selectJobsListPath and selectJobsListInfo are empty
 
-if [[ "$isDownTask" = true ]]; then
+if [[ "$isDownTask" = true || "$isDataPathInRelResPath" = true ]]; then
     echo "Creating the data directory:  $dataPath"
     mkdir -p "$dataPath"
     if [[ "$?" -ne 0 ]]; then
@@ -372,7 +378,7 @@ done
 
 bash "$scriptsPath"/makeCon.sh "$conMap" "$conMapOutDir"\
      "\$(exeMap)" "$conMapArgs" "\$(conMapTransFiles)"\
-     "1" "1" "1"
+     "1" "1" "1" "" "" "\$(conName)"
 if [[ "$?" -ne 0 ]]; then
     exit "$?"
 fi
@@ -438,10 +444,12 @@ do
          >> "$pipeStructFile" #just a name
   printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n"\
          >> "$pipeStructFile"
+  printf "VARS $jobId conName=\"${taskMap[$i]}.$jobId.\"\n"\
+         >> "$pipeStructFile"
   #printf "\n" >> "$pipeStructFile"
 
   # Path to return all results from jobs
-  if [[ "$jobId" = "$downloadTaskName" ]]; then
+  if [[ "$jobId" = "$downloadTaskName" || "${taskRelResPath[$i]}" = dataPath ]]; then
       resPathTmp="$dataPath"
   else
     if [[ -z $(RmSp "${taskRelResPath[$i]}") ]]; then
