@@ -183,8 +183,10 @@ printf "JOB  $jobId $conFile\n" >> "$dagFile"
 
 printf "VARS $jobId repName=\"$(JoinToStr "," "${repName[@]##*/}")\"\n"\
        >> "$dagFile"
-printf "VARS $jobId ctlName=\"$(JoinToStr "," "${ctlName[@]}")\"\n"\
+printf "VARS $jobId ctlName=" >> "$dagFile"
+printf "\"$(JoinToStr "," "${ctlName[@]##$(dirname "$inpPath")/}")\"\n"\
        >> "$dagFile"
+
 printf "VARS $jobId transOut=\"$transOut\"\n" >> "$dagFile"
 printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
        >> "$dagFile"

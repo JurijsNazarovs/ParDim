@@ -62,7 +62,8 @@ does not work there.
     core scripts
 [+] make a relResPath to any of pipeline parts => the next part is running from
     that path
-[-?] add postscript to open files after multimap. 
+[-?] add postscript to open files after multimap.
+[-] add iterator in multimap to avoid overlapping of tarfiles
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
 
@@ -76,6 +77,11 @@ If single task if first no need for dataPath or select job list
 exeMap scritps transfer conOut* dagFile and jobsDir
 
 Every Dagmaker has to accept exeFile from argslist
+
+
+If relPath has dataPath then the data Path is used for resulted path. It is
+made to fill dataPath with different files. For example, I have a dataPath
+and I want to fill it with dummy files like pool.flag to continue pipeline
 ## ========= ParDim.sh ====== ##
 input of:
       stages for scripts. In every section first and Last stage. if no last, then use last as first and another way

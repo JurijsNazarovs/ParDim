@@ -111,7 +111,7 @@ GetNumLines(){
   # Function returns number of lines in the file
   fileName=$1
 
-  if [ "${fileName##*.}" = "gz" ]; then
+  if [[ "${fileName##*.}" = "gz" ]]; then
       echo "$(zcat $fileName | wc -l)"
   else
     echo "$(cat $fileName | wc -l)"

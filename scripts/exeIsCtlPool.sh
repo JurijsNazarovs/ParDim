@@ -30,14 +30,13 @@ dirTmp=$(mktemp -dq tmpXXXX) #create tmp dir to tar everything inside later
 
 readarray -t ctlName <<< "$(echo "$ctlName" | tr "," "\n")"
 for i in "${!ctlName[@]}"; do
-  lastDir="$(dirname "${ctlName[$i]}")"
-  lastDir="$(basename "$lastDir")"
-  if ! [[ "$lastDir" =~ ^ctl[0-9]*$ ]]; then
-      lastDir="."
+  ctlDir["$i"]="$dirTmp/$(dirname "${ctlName[$i]}")" #directory for flagOutput
+  mkdir -p "${ctlDir["$i"]}"
+  if [[ $? -ne 0 ]]; then
+      ErrMsg "Directory: ${ctlDir["$i"]}
+             was not created"
   fi
-  lastDir="$dirTmp/$lastDir"
-  mkdir -p "$lastDir"
-  ctlDir["$i"]="$lastDir" #directory for flagOutput
+
   ctlName["$i"]="$(basename "${ctlName[$i]}")"
 done
 
