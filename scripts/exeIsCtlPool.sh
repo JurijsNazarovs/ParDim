@@ -19,18 +19,23 @@ echo "[Start] $curScrName"
 ## Input and default values
 repName=$1
 ctlName=$2
-outTar=${3:-"isPool.tar.gz"} #tarFile to return back on submit machine
-ctlDepthRatio=${4:-"1.2"}
-isDry=${5:-true}
+resDir=${3:-"resDir"}
+outTar=${4:-"isPool.tar.gz"} #tarFile to return back on submit machine
+ctlDepthRatio=${5:-"1.2"}
+isDry=${6:-true}
 
 readarray -t repName <<< "$(echo "$repName" | tr "," "\n")"
 
+
 ## Create a structure for ctlFiles to do the right output
-dirTmp=$(mktemp -dq tmpXXXX) #create tmp dir to tar everything inside later
+mkdir -p "$resDir"
+if [[ $? -ne 0 ]]; then
+    ErrMsg "Cannot create a $resDir"
+fi
 
 readarray -t ctlName <<< "$(echo "$ctlName" | tr "," "\n")"
 for i in "${!ctlName[@]}"; do
-  ctlDir["$i"]="$dirTmp/$(dirname "${ctlName[$i]}")" #directory for flagOutput
+  ctlDir["$i"]="$resDir/$(dirname "${ctlName[$i]}")" #directory for flagOutput
   mkdir -p "${ctlDir["$i"]}"
   if [[ $? -ne 0 ]]; then
       ErrMsg "Directory: ${ctlDir["$i"]}
@@ -94,13 +99,17 @@ done
 
 
 ## Prepare tar to move results back
-tar -czf "$outTar" -C "$dirTmp" .
+tar -czf "$outTar" "$resDir"
+if [[ $? -ne 0 ]]; then
+    ErrMsg "Cannot create a $outTar"
+fi
+
 
 # Has to hide all unnecessary files in tmp directories
 if [[ "$isDry" = false ]]; then
-    mv !("$dirTmp") "$dirTmp"
-    mv "$dirTmp"/_condor_std* ./
-    mv "$dirTmp/$outTar" ./
+    mv !("$resDir") "$resDir"
+    mv "$resDir"/_condor_std* ./
+    mv "$resDir/$outTar" ./
 fi
 
 echo "[End]  $curScrName"

@@ -84,8 +84,9 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
        "$argsFile"\
        "$dagFileInDir"\
        "$curJobDir"\
-       "$resPath\$dirName"\
        "$fileWithContent"\
+       "$resPath"\
+       "$dirName"\
        "${taskScript%.*}_$dirName.tar.gz" #unique name for transfer output
   exFl=$? #exit value of creating dag
 

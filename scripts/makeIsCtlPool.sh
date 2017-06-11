@@ -23,9 +23,10 @@ curScrName=${0##*/} #delete last backSlash
 argsFile=${1:-"args.listDev"} 
 dagFile=${2:-"isPool.dag"} #create this
 jobsDir=${3:-"isPoolTmp"} #working directory, provided with one of analysed dirs
-resPath=${4:-"/tmp/isPool"} #return on submit server. Can be read from file if empty
-inpDataInfo=${5} #text file with input data
-transOut=${6:-"isPool"}
+inpDataInfo=${4} #text file with input data
+resPath=${5:-"/tmp/isPool"} #return on submit server. Can be read from file if empty
+resDir=${6:="resultedDir"}
+transOut=${7:-"isPool.tar.gz"}
 
 
 ## Default values, which can be read from the $argsFile
@@ -158,7 +159,8 @@ hd=$(echo $hd/1024^3 + 1 | bc) #in GB rounded to a bigger integer
 hd=$((hd + 1)) #+1gb for safety
 
 # Arguments for condor job
-argsCon=("\$(repName)" "\$(ctlName)" "\$(transOut)" "$ctlDepthRatio" "false")
+argsCon=("\$(repName)" "\$(ctlName)" "\$(resDir)" "\$(transOut)"
+         "$ctlDepthRatio" "false")
 argsCon=$(JoinToStr "\' \'" "${argsCon[@]}")
 
 # Output directory for condor log files
@@ -184,9 +186,11 @@ printf "JOB  $jobId $conFile\n" >> "$dagFile"
 printf "VARS $jobId repName=\"$(JoinToStr "," "${repName[@]##*/}")\"\n"\
        >> "$dagFile"
 printf "VARS $jobId ctlName=" >> "$dagFile"
-printf "\"$(JoinToStr "," "${ctlName[@]##$(dirname "$inpPath")/}")\"\n"\
+printf "\"$(JoinToStr "," "${ctlName[@]##"$inpPath"}")\"\n"\
        >> "$dagFile"
 
+
+printf "VARS $jobId resDir=\"$resDir\"\n" >> "$dagFile"
 printf "VARS $jobId transOut=\"$transOut\"\n" >> "$dagFile"
 printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
        >> "$dagFile"
