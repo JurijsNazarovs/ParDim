@@ -66,7 +66,11 @@ does not work there.
 [-] add iterator in multimap to avoid overlapping of tarfiles
 Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
 exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
-
+[-] In multiMap jobs are run from multimap dir and return also there, thus,
+    in scritps have to write an output such that returns in specific directory,
+    which is wrong. I should provide tshis derectory. That is,
+    transfer output have to have directory structure somehow. Best option is
+    dirName/ - tarFile
 The connection between dataPath and Download is hardcoded
 selectJobListPath is empty in case of pipeline = just Download
 
