@@ -39,9 +39,10 @@ curScrName=${0##*/} #delete last backSlash
 argsFile=${1:-"args.listDev"} 
 dagFile=${2:-"aquas.dag"} #create this
 jobsDir=${3:-"aquasTmp"} #working directory, provided with one of analysed dirs
-resPath=${4:-""} #return on submit server. Can be read from file if empty
-inpDataInfo=${5} #text file with input data
-isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
+inpDataInfo=${4} #text file with input data
+resPath=${5:-"/tmp/aquas"} #return on submit server. Can be read from file if empty
+resDir=${6:-"resultedDir"}
+transOut=${7:-"aquas.tar.gz"}
 ### END OF NEW INPUT
 
 
@@ -123,14 +124,16 @@ if [[ "$isAlligned" = true ]]; then
                        -v pattern="^$inpPathTmp/$i[0-9]*:$"\
                        '{ if ($0 ~ pattern) {print $0} }' "$inpDataInfo"
                  )"
-      inpNum=${#inpDir[@]}
+      
+      if [[ -z $(RmSp "$inpDir") ]]; then
+          ErrMsg "No directories are found corresponding to the pattern:
+                 $inpPathTmp/$i[0-9]*
+                 Maybe option isAlligned should be false?"
+      fi
 
-      if [[ $inpNum -eq 0 ]]; then 
-	  ErrMsg "Number of $i files equals to 0."
-      else
-        for j in "${!inpDir[@]}"; do
-          readarray -t strTmp <<< \
-                    "$(awk -F "\t"\
+      for j in "${!inpDir[@]}"; do
+        readarray -t strTmp <<< \
+                  "$(awk -F "\t"\
                          -v dir="${inpDir[$j]}"\
                          -v file="$inpExt$"\
                          '{ 
@@ -139,40 +142,97 @@ if [[ "$isAlligned" = true ]]; then
                             if (f == 1 && $1 ~ file) {print $0} 
                           }' "$inpDataInfo"
                     )"
-	  
-	  if [[ ${#strTmp[@]} -ne 1 ]]; then
-	      ErrMsg "Cannot detect replicate name from ${inpDir[$j]}"
-	  else #just one possible file in directory
-            strTmp=(${strTmp[@]})
-            requirSize=$((requirSize + strTmp[1]))
-	    eval $i"Name[\"$j\"]=${inpDir[$j]%:}/\"${strTmp[0]}\""  #repName
-          fi
-        done
-        eval $i"Num=\${#"$i"Name[@]}" #repNum
-      fi
+	
+	if [[ ${#strTmp[@]} -ne 1 ]]; then
+	    ErrMsg "Cannot detect replicate name from ${inpDir[$j]}"
+	else #just one possible file in directory
+          strTmp=(${strTmp[@]})
+          requirSize=$((requirSize + strTmp[1]))
+	  eval $i"Name[\"$j\"]=${inpDir[$j]%:}/\"${strTmp[0]}\""  #repName
+        fi
+
+        # Detect the pool flag for ctlName[$j]
+        if [[ "$i" = ctl ]]; then
+            readarray -t strTmp <<< \
+                      "$(awk -F "\t"\
+                         -v dir="${inpDir[$j]}"\
+                         -v file="$(basename ${ctlName[$j]}).pool."\
+                         '{ 
+                            if ($0 ~ dir) {f = 1; next}
+                            if ($0 ~ "^/.*:$") {f = 0}
+                            if (f == 1 && $1 ~ file) {print $1} 
+                          }' "$inpDataInfo"
+                      )"
+            isCtlPoolTmp=() #files with pool.true or pool.false at the end
+            for k in "${strTmp[@]}"; do
+              if [[ "${k##*.}" = true || "${k##*.}" = false ]]; then
+                  isCtlPoolTmp=("${nPool[@]}" "${k##*.}")
+              fi   
+            done
+            if [[ "${#isCtlPoolTmp[@]}" -gt 1 ]]; then
+                  ErrMsg "Several pooled flags are detected in ${inpDir[$j]}"
+            fi
+
+            if [[ "${#isCtlPoolTmp[@]}" -eq 0 ]]; then
+                useCtlPool["$j"]="false"
+            else
+              useCtlPool["$j"]="$isCtlPoolTmp"
+            fi
+        fi
+      done
+      
+      eval "strTmp=(\${"$i"Name[@]})"
+      if [[ -n  $(ArrayGetDupls "${strTmp[@]##*/}") ]]; then
+          ErrMsg "Duplicates in names are prohibeted on this stage."
+      fi #because files are moving in condor without structure saving
+      eval $i"Num=\${#"$i"Name[@]}" #repNum
     done
 else  #have to allign in this pipeline
-  inpExt="bed.gz" #bam
-  inpType=("rep" "ctl") #names of searched dirs with data
+  inpExt="nodup.tagAlign.gz" #bam
+  inpType=("rep" "ctl") #names of searched files
   posEnd=("ctl" "dnase")
 
   for i in "${inpType[@]}"; do
+    readarray -t strTmp <<< \
+              "$(awk -F "\t"\
+                     -v dir="${inpDir[$j]}"\
+                     -v file="$inpExt$"\
+                     '{ 
+                       if ($0 ~ dir) {f = 1; next}
+                       if ($0 ~ "^/.*:$") {f = 0}
+                       if (f == 1 && $1 ~ file) {print $0} 
+                     }' "$inpDataInfo"
+              )"
+    
     if [[ "$i" != "rep" ]]; then
         inpExtTmp=".$i.$inpExt"
         readarray -t inpName <<<\
                   "$(awk -F "\t"\
-                     -v file="$inpExtTmp$"\
-                    '{ if ($1 ~ file && NF > 1) {print $0} }' "$inpDataInfo"
+                         -v dir="$inpPath:$"\
+                         -v file="$inpExtTmp$"\
+                         '{ if ($0 ~ dir) {f = 1; next}
+                            if ($0 ~ "^/.*:$") {f = 0}
+                            if (f ==1 && $1 ~ file && NF > 1) {print $0} 
+                         }' "$inpDataInfo"
                   )"
     else
       posEndTmp=."$(JoinToStr ".|." "${posEnd[@]}")."
       readarray -t inpName <<<\
                 "$(awk -F "\t"\
+                       -v dir="$inpPath:$"\
                        -v file="$posEndTmp"\
                        -v ext="$inpExt$"\
-                       '{ if ($1 !~ file && $1 ~ ext && NF > 1) {print $0} }'\
-                        "$inpDataInfo"
+                       '{ if ($0 ~ dir) {f = 1; next}
+                          if ($0 ~ "^/.*:$") {f = 0}
+                          if (f==1 && $1 !~ file && $1 ~ ext && NF > 1)
+                             {print $0}
+                       }' "$inpDataInfo"
                  )"
+    fi
+
+    if [[ -z $(RmSp "$inpName") ]]; then
+         eval $i"Num=0"
+        continue
     fi
 
     # Fill variables with full path to files and size
@@ -180,11 +240,42 @@ else  #have to allign in this pipeline
       strTmp=(${inpName[$j]})
       requirSize=$((requirSize + strTmp[1]))
       eval $i"Name[\"$j\"]=$inpPath\"${strTmp[0]}\""
+
+      # Detect the pool flag for ctlName[$j]
+      if [[ "$i" = ctl ]]; then
+          readarray -t strTmp <<< \
+                    "$(awk -F "\t"\
+                           -v dir="$inpPath:$"\
+                           -v file="$(basename ${ctlName[$j]}).pool."\
+                           '{ 
+                              if ($0 ~ dir) {f = 1; next}
+                              if ($0 ~ "^/.*:$") {f = 0}
+                              if (f == 1 && $1 ~ file) {print $1} 
+                           }' "$inpDataInfo"
+                      )"
+          isCtlPoolTmp=() #files with pool.true or pool.false at the end
+          for k in "${strTmp[@]}"; do
+            if [[ "${k##*.}" = true || "${k##*.}" = false ]]; then
+                isCtlPoolTmp=("${nPool[@]}" "${k##*.}")
+            fi   
+          done
+          if [[ "${#isCtlPoolTmp[@]}" -gt 1 ]]; then
+              ErrMsg "Several pooled flags are detected in ${inpDir[$j]}"
+          fi
+
+          if [[ "${#isCtlPoolTmp[@]}" -eq 0 ]]; then
+              useCtlPool["$j"]="false"
+          else
+            useCtlPool["$j"]="$isCtlPoolTmp"
+          fi
+      fi
+      
     done
     eval $i"Num=\${#inpName[@]}" #repNum
   done
 fi
-
+echo "${useCtlPool[@]}"
+echo "${ctlName[@]}"; exit 1
 if [[ "$repNum" -eq 0 ]]; then
     ErrMsg "Number of replicates has to be more than 0"
 fi
@@ -220,9 +311,8 @@ mkdir -p "$conOut"
 
 # Transfered files
 transFiles=("$jobsDir/\$($jobArgsFileVar)"
-            "$specTar"
-            "$specList"
-	    "http://proxy.chtc.wisc.edu/SQUID/nazarovs/pipeInstallFiles.tar.gz")
+	    "http://proxy.chtc.wisc.edu/SQUID/nazarovs/pipeInstallFiles.tar.gz"
+           "\$(transFiles)")
 transFiles=$(joinToStr ", " "${transFiles[@]}")
 
 # Main condor file

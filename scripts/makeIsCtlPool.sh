@@ -25,7 +25,7 @@ dagFile=${2:-"isPool.dag"} #create this
 jobsDir=${3:-"isPoolTmp"} #working directory, provided with one of analysed dirs
 inpDataInfo=${4} #text file with input data
 resPath=${5:-"/tmp/isPool"} #return on submit server. Can be read from file if empty
-resDir=${6:="resultedDir"}
+resDir=${6:-"resultedDir"}
 transOut=${7:-"isPool.tar.gz"}
 
 
@@ -102,26 +102,45 @@ if [[ "$isAlligned" = true ]]; then
       eval $i"Num=\${#"$i"Name[@]}" #repNum
     done
 else  #have to allign in this pipeline
-  inpExt="bam" #bam
-  inpType=("rep" "ctl") #names of searched dirs with data
+  inpExt="nodup.tagAlign.gz" #bam
+  inpType=("rep" "ctl") #names of searched files
   posEnd=("ctl" "dnase")
 
   for i in "${inpType[@]}"; do
+    readarray -t strTmp <<< \
+              "$(awk -F "\t"\
+                     -v dir="${inpDir[$j]}"\
+                     -v file="$inpExt$"\
+                     '{ 
+                       if ($0 ~ dir) {f = 1; next}
+                       if ($0 ~ "^/.*:$") {f = 0}
+                       if (f == 1 && $1 ~ file) {print $0} 
+                     }' "$inpDataInfo"
+              )"
+    
     if [[ "$i" != "rep" ]]; then
         inpExtTmp=".$i.$inpExt"
         readarray -t inpName <<<\
                   "$(awk -F "\t"\
-                     -v file="$inpExtTmp$"\
-                    '{ if ($1 ~ file && NF > 1) {print $0} }' "$inpDataInfo"
+                         -v dir="$inpPath:$"\
+                         -v file="$inpExtTmp$"\
+                         '{ if ($0 ~ dir) {f = 1; next}
+                            if ($0 ~ "^/.*:$") {f = 0}
+                            if (f ==1 && $1 ~ file && NF > 1) {print $0} 
+                         }' "$inpDataInfo"
                   )"
     else
       posEndTmp=."$(JoinToStr ".|." "${posEnd[@]}")."
       readarray -t inpName <<<\
                 "$(awk -F "\t"\
+                       -v dir="$inpPath:$"\
                        -v file="$posEndTmp"\
                        -v ext="$inpExt$"\
-                       '{ if ($1 !~ file && $1 ~ ext && NF > 1) {print $0} }'\
-                        "$inpDataInfo"
+                       '{ if ($0 ~ dir) {f = 1; next}
+                          if ($0 ~ "^/.*:$") {f = 0}
+                          if (f==1 && $1 !~ file && $1 ~ ext && NF > 1)
+                             {print $0}
+                       }' "$inpDataInfo"
                  )"
     fi
 
@@ -134,10 +153,10 @@ else  #have to allign in this pipeline
     for j in "${!inpName[@]}"; do
       strTmp=(${inpName[$j]})
       requirSize=$((requirSize + strTmp[1]))
-      eval $i"Name[\"$j\"]=$inpPath\"${strTmp[0]}\""
+      eval $i"Name[\"$j\"]=$inpPath\"${strTmp[0]}\""  
     done
     eval $i"Num=\${#inpName[@]}" #repNum
-  done
+  done  
 fi
 
 if [[ "$repNum" -eq 0 ]]; then
