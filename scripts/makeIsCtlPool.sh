@@ -26,15 +26,15 @@ jobsDir=${3:-"isPoolTmp"} #working directory, provided with one of analysed dirs
 inpDataInfo=${4} #text file with input data
 resPath=${5:-"/tmp/isPool"} #return on submit server. Can be read from file if empty
 resDir=${6:-"resultedDir"}
-transOut=${7:-"isPool.tar.gz"}
+transOut=${7:-"isPool"}
 
 
 ## Default values, which can be read from the $argsFile
-posArgs=("isAlligned"
+posArgs=("isInpNested"
          "exePath"
          "ctlDepthRatio")
 
-isAlligned="true"	#continue pipeline or run from scratch
+isInpNested="true"	#continue pipeline or run from scratch
 exePath="$homePath/exeIsCtlPool.sh"
 ctlDepthRatio="1.2"
 
@@ -50,14 +50,14 @@ fi
 
 PrintArgs "$curScrName" "${posArgs[@]}" "jobsDir"
 
-ChkValArg "isAlligned" "" "true" "false"
+ChkValArg "isInpNested" "" "true" "false"
 
 
 ## Detect reps and ctls
 requirSize=0
 inpPath="$(awk 'NR==1{print $1; exit}' "$inpDataInfo")"
 inpPath="${inpPath%:}"
-if [[ "$isAlligned" = true ]]; then
+if [[ "$isInpNested" = true ]]; then
     inpExt="tagAlign.gz"
     inpPathTmp="$inpPath"align
     inpType=("rep" "ctl") #names of searched dirs with data
@@ -72,7 +72,7 @@ if [[ "$isAlligned" = true ]]; then
       if [[ -z $(RmSp "$inpDir") ]]; then
           ErrMsg "No directories are found corresponding to the pattern:
                  $inpPathTmp/$i[0-9]*
-                 Maybe option isAlligned should be false?"
+                 Maybe option isInpNested should be false?"
       fi
 
       for j in "${!inpDir[@]}"; do
@@ -178,7 +178,7 @@ hd=$(echo $hd/1024^3 + 1 | bc) #in GB rounded to a bigger integer
 hd=$((hd + 1)) #+1gb for safety
 
 # Arguments for condor job
-argsCon=("\$(repName)" "\$(ctlName)" "\$(resDir)" "\$(transOut)"
+argsCon=("\$(repName)" "\$(ctlName)" "$resDir" "\$(transOut)"
          "$ctlDepthRatio" "false")
 argsCon=$(JoinToStr "\' \'" "${argsCon[@]}")
 
@@ -209,8 +209,7 @@ printf "\"$(JoinToStr "," "${ctlName[@]##"$inpPath"}")\"\n"\
        >> "$dagFile"
 
 
-printf "VARS $jobId resDir=\"$resDir\"\n" >> "$dagFile"
-printf "VARS $jobId transOut=\"$transOut\"\n" >> "$dagFile"
+printf "VARS $jobId transOut=\"$transOut.tar.gz\"\n" >> "$dagFile"
 printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
        >> "$dagFile"
 printf "\n" >> "$dagFile"

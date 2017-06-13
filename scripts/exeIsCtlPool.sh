@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #===============================================================================
 # This script decides if ctl files have to be pooled or not
 #
