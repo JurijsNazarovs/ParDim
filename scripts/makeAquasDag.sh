@@ -661,7 +661,7 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" &&\
 
       hdTmp[$i]=0
       for ((j=1; j<=$colNum; j++)); do #number of reps
-	printf -- "-tag$j\t\t${repTag[$i,$((j-1))]}\n" >> "${jobArgsFile[$i]}"
+	printf -- "-tag$j\t\t${repTag[$i,$((j-1))]##*/}\n" >> "${jobArgsFile[$i]}"
         
         if [[ $j -eq 1 ]]; then
              transFilesTmp[$i]="${repTag[$i,$((j-1))]}"
@@ -687,7 +687,7 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" &&\
 	# Fill these files
         hdTmp[$nTmp]=0
 	for ((i=1; i<=$ctlNum; i++)); do
-	  printf -- "-tag$i\t\t${ctlTag[$((i-1))]}\n" >> "$jobArgsFileTmp"
+	  printf -- "-tag$i\t\t${ctlTag[$((i-1))]##*/}\n" >> "$jobArgsFileTmp"
           hdTmp[$nTmp]=$((hdTmp[nTmp] + ctlSize[((i-1))]))
 	done
         transFilesTmp[$nTmp]="$(JoinToStr ", " "${ctlTag[@]}")"
