@@ -119,7 +119,11 @@ printf "## Execution \n" >> "$conFile"
 if [[ -n $(RmSp "$args") ]]; then
     printf "arguments = \" \'$args\' \" \n" >> "$conFile"
 fi
-printf "executable = $exeFile\n" >> "$conFile"
+
+if [[ -n $(RmSp "$exeFile") ]]; then
+    printf "executable = $exeFile\n" >> "$conFile"
+fi
+
 
 ## End
 printf "queue\n" >>  "$conFile"
