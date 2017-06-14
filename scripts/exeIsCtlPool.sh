@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #===============================================================================
 # This script decides if ctl files have to be pooled or not
 #
@@ -10,7 +10,7 @@
 ## Libraries and options
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
-source "funcList.sh" #need to transfer
+source "./funcList.sh" #need to transfer
 
 curScrName=${0##*/} #delete last backSlash
 EchoLineBold
