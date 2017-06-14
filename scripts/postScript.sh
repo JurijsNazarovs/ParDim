@@ -104,6 +104,10 @@ if [[ "$task" = untarfilesfromdir ]]; then
     dirPath=$1
     ChkAvailToWrite "dirPath"
     files=("$dirPath"/*.tar.gz)
+    if [[ "${#files[@]}" -eq 0 ]]; then
+        echo "No .tar.gz files in $dirPath"
+        exit 0
+    fi
     UntarFiles "${files[@]}"
     exit 0
 fi
