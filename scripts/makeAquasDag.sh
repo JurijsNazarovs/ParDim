@@ -46,7 +46,7 @@ outPath="$resPath/$resDir" #Used as input for stages after job was done
 
 
 ## Default values, which can be read from the $argsFile
-posArgs=("firstStage" "lastStage" "trueRep" "coresNum"
+posArgs=("firstStage" "lastStage" "trueRep" "coresPeaks" "coresStg"
 	 "specName" "specList" "specTar" "isInpNested"
          "inpExt" "exePath" "funcList" "postScript")
 
@@ -54,13 +54,14 @@ posArgs=("firstStage" "lastStage" "trueRep" "coresNum"
 firstStage="download"		#starting stage of the pipeline 
 lastStage="peaks"		#ending stage of the pipeline
 trueRep="false"		#whether to use true replicates or not
-coresNum="4"		#number of cores for calculations
 specName="hg19"		#names of species: hg38, hg19, mm10, mm9 
 specList="spec.list"	#list with all species
 specTar="spec.tar.gz"	#tar files w/ all species files
 ctlDepthRatio="1.2"	#ratio to compare ctl files to pool
 isInpNested="true"	#if all files in one dir or in subdirs: rep$i, ctl$i
 inpExt="nodup.tagAlign.gz" #extension of original input data (before tagStage)
+coresPeaks="4"          #number of cores for spp peaks caller
+coresStg="1"            #number of cores for signal track generation (Macs2) 
 exePath="$homePath/exeAquas.sh"
 funcList="$homePath/funcList.sh"
 postScript="$homePath/postScript.sh"
@@ -311,6 +312,7 @@ if [[ "$lastStage" -gt "$tagStage" ]]; then
     if [[ "$ctlNum" -eq 1 && "$repNum" -ge 2 ]]; then
         for ((i=1; i<$repNum; i++)); do #yes, exactly from i=1
           ctlTag[$i]="${ctlTag[0]}"
+          ctlSize[$i]="${ctlSize[0]}"
         done
     fi
 
@@ -699,7 +701,6 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" &&\
       jobId="${jobArgsFile[$i]##*/}" #take the name from the argFile with format
       jobId="${jobId%.*}" #delete extension
 
-
       hd=$(echo ${hdTmp[$i]}/1024^3 + 1 | bc) #in GB
       ram=$((hd*2))
       hd=$((hd + 9)) #for software
@@ -789,7 +790,8 @@ for ((i=0; i<$ctlNum; i++)); do
 done
 
 ## Peaks and stgMacs2
-#Code is almost the same for two parts => we use loop
+# Code is almost the same for two parts => we use loop
+# Difference that stg does not need PR values
 stIterTmp=("$stgName" "$peakName")
 for stIter in "${stIterTmp[@]}"; do
   stTmp=$(MapStage "$stIter")
@@ -807,7 +809,7 @@ for stIter in "${stIterTmp[@]}"; do
       printf "# $jobName\n" >> "$dagFile" 
       PrintfLine >> "$dagFile"
 
-      # For reps
+      # Go throw replicates: rep_pooled, rep1, rep2, ...
       for ((i=0; i<=$repNum; i++)); do #0-pooled	
 	inpXcorTmp=() 
 	jobId=()
@@ -816,15 +818,16 @@ for stIter in "${stIterTmp[@]}"; do
 	# Create right records for job file
 	if [[ "$i" -eq 0 ]]; then #i.e. pooled peak or stg
 	    if [[ "$repNum" -gt 1 ]]; then
-                # [Input]
                 # Ctl
 		inpCtlTmp="$ctlTagPool" #includes 1 or many ctl
                 # Xcor
+                inpXcorTmp=()
 		for ((j=1; j<=repNum; j++)); do
 		  inpXcorTmp[$((j-1))]="$outPath/qc/rep$j/\
 $(basename ${repName[$((j-1))]%.$inpExt}).nodup.15M.cc.qc"
 		done
-                # Rep
+                # Rep, PR
+                inpTmp=()
                 strTmp="$(basename ${repName[0]%.$inpExt})"
 		for ((j=0; j<=$prNumTmp; j++)); do #rep, repPr1, repPr2, ...
 		  if [[ "$j" -eq 0 ]]; then
@@ -840,83 +843,107 @@ $strTmp.nodup.pr${j}_pooled.tagAlign.gz"
 		      jobId[$j]="${jobId[$j]}Pr$j"
 		  fi
 		done
+
+                hdTmp[$i]=0
+                for ((j=1; j<=repNum; j++)); do
+		  hdTmp[$i]=$((hd[i] + repSize[j] + ctlSize[j]))
+		done
 	    else
 	      continue
 	    fi
-	else #separately for replicates  #STOPED HERE
-
-	  # ctl settings
-	  inpCtlTmp="${ctlTag[$((i-1))]}" #considering if ctlNum>1 or not
-
-	  # xcor settings
-	  inpXcorTmp="$outPath/qc/rep$i/${repName[$((i-1))]}.nodup.15M.cc.qc"
-
-	  # rep and pr settings
-	  for ((j=0; j<=$prNumTmp; j++)) #go throw type of rep: rep, repPr1, repPr2, ...
-	  do
-	    inpTmp[$j]=${repTag[$j,$((i-1))]}
+	else #separately for replicates
+	  # Ctl
+	  inpCtlTmp="${ctlTag[$((i-1))]}" #considering if ctlNum>1 or notxs
+	  # Xcor
+          inpXcorTmp=()
+	  inpXcorTmp="$outPath/qc/rep$i/\
+$(basename ${repName[$((i-1))]%.$inpExt}).nodup.15M.cc.qc"
+	  # Rep, PR
+          inpTmp=()
+	  for ((j=0; j<=$prNumTmp; j++)); do #rep, repPr1, repPr2, ...
+	    inpTmp[$j]="${repTag[$j,$((i-1))]}"
+            
 	    jobId[$j]="${jobName}Rep${i}"
-	    if [ "$stIter" != "$stgName" ]; then
+	    if [[ "$stIter" != "$stgName" ]]; then
 		jobId[$j]="${jobId[$j]}Pr$j"
 	    fi
 	  done
+
+          hdTmp[$i]=$((repSize[i] + ctlSize[i])) #b/c PR is about same size as rep
 	fi
 
-	# Print jobs in the file		
+	# Print jobs in the file based on replicates: pooled, rep1, rep2	
 	PrintfLineSh >> "$dagFile"
 	printf "# Rep$i\n" >> "$dagFile" 
 	PrintfLineSh >> "$dagFile"
 
-	for ((j=0; j<=$prNumTmp; j++)) #go throw type of rep: rep, repPr1, repPr2, ...
-	do
+	for ((j=0; j<=$prNumTmp; j++)); do #rep, repPr1, repPr2, ...
 	  jobIdTmp="${jobId[$j]}"
 	  jobArgsFile=("$jobsDir/$jobIdTmp.args")
-	  inpTmp[$j]=$(rmSp "${inpTmp[$j]}")
-	  
 
-	  printf "JOB $jobIdTmp $conNCore\n" >> "$dagFile" #original like this
-	  printf "VARS $jobIdTmp argsFile=\"$jobIdTmp.args\"\n" >> "$dagFile"
+          hd=$(echo ${hdTmp[$i]}/1024^3 + 1 | bc) #in GB
           if [[ "$stIter" = "$stgName" ]]; then #string comparison
-	      printf "VARS $jobId nCores=1\n" >> "$dagFile"
+	      nCoresTmp=$coresStg
+              ram=$((hd*2))
 	  else
-	    printf "VARS $jobId nCores=$coresNum\n" >> "$dagFile"
+	    nCoresTmp=$coresPeaks
+            ram=$((hd + 2*nCoresTmp))
 	  fi
+
+          hd=$((hd + 9)) #for software
+          transFilesTmp="$(JoinToStr ", " "${inpTmp[$j]}" "${inpCtlTmp}"\
+                           "${inpXcorTmp[@]}")"
+
+          if [[ $j -gt 0 ]]; then
+              PrintfLineSh >> "$dagFile"
+          fi
+
+	  printf "JOB $jobIdTmp $conFile\n" >> "$dagFile"
+          printf "VARS $jobIdTmp script=\"$jobName.bds\"\n" >> "$dagFile"
+          printf "VARS $jobIdTmp argsFile=\"${jobArgsFile##*/}\"\n" >> "$dagFile"
+          
+          printf "VARS $jobIdTmp nCores=\"$nCoresTmp\"\n" >> "$dagFile"
+          printf "VARS $jobIdTmp hd=\"$hd\"\n" >> "$dagFile"
+          printf "VARS $jobIdTmp ram=\"$ram\"\n" >> "$dagFile"
+
+          transOutTmp="$transOut.$jobIdTmp.tar.gz"
+          transMapTmp="$resPath/$transOutTmp"
+          printf "VARS $jobIdTmp transFiles=\"$transFilesTmp\"\n" >> "$dagFile"
+          printf "VARS $jobIdTmp transOut=\"$transOutTmp\"\n"\
+                 >> "$dagFile"
+          printf "VARS $jobIdTmp transMap=\"\$(transOut)=$transMapTmp\"\n"\
+                 >> "$dagFile"
+          printf "VARS $jobIdTmp conName=\"$jobIdTmp.\"\n"\
+                 >> "$dagFile"
 
 	  # args file
-	  printf -- "script\t\t$jobName.bds\n" > $jobArgsFile
-	  printf -- "-out_dir\t\t$outPath\n" >> $jobArgsFile
-	  #printf -- "-nth\t\t$coresNum\n" >> $jobArgsFile
+	  printf -- "-nth\t\t$nCoresTmp\n" >> $jobArgsFile
+	  printf -- "-tag\t\t${inpTmp[$j]##*/}\n" >> $jobArgsFile
+	  printf -- "-ctl_tag\t\t${inpCtlTmp##*/}\n" >> $jobArgsFile
 
-	  if [ "$stIter" = "$stgName" ]; then #string comparison
-	      printf -- "-nth\t\t1\n" >> $jobArgsFile
-	  else
-	    printf -- "-nth\t\t$coresNum\n" >> $jobArgsFile
-	  fi
-
-	  printf -- "-tag\t\t${inpTmp[$j]}\n" >> $jobArgsFile
-	  printf -- "-ctl_tag\t\t$inpCtlTmp\n" >> $jobArgsFile
-
-	  if [ "$stIter" != "$stgName" ]; then
+	  if [[ "$stIter" != "$stgName" ]]; then
 	      printf -- "-pr\t\t$j\n" >> $jobArgsFile
 	  fi
 
-	  if [ "$i" -eq "0" ]; then
-	      for ((k=1; k<=$repNum; k++))
-	      do
-		inpXcorTmp[$((k-1))]=$(rmSp "${inpXcorTmp[$((k-1))]}")			
-		printf -- "-xcor_qc$k\t\t${inpXcorTmp[$((k-1))]}\n"\
+	  if [[ "$i" -eq "0" ]]; then
+	      for ((k=1; k<=$repNum; k++)); do			
+		printf -- "-xcor_qc$k\t\t${inpXcorTmp[$((k-1))]##*/}\n"\
 		       >> $jobArgsFile
 	      done
 	  else
 	    printf -- "-rep\t\t$i\n" >> $jobArgsFile
-	    printf -- "-xcor_qc\t\t$inpXcorTmp\n" >> $jobArgsFile
+	    printf -- "-xcor_qc\t\t${inpXcorTmp##*/}\n" >> $jobArgsFile
 	  fi
-
+          
 	  # Parent & Child dependency
 	  if [[ "$lastStage" -ge "$idrOverlapStage" && "$stIter" != "$stgName" ]]; then
 	      printf "PARENT $jobIdTmp CHILD $idrName $overlapName\n\n"\
 		     >> "$dagFile"
 	  fi
+
+          # Post script to untar resulting files
+          printf "\nSCRIPT POST $jobIdTmp $postScript untarfiles $transMapTmp\n"\
+                 >> "$dagFile"
 	done
       done
   fi
