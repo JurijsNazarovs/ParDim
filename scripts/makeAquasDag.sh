@@ -46,37 +46,43 @@ outPath="$resPath/$resDir" #Used as input for stages after job was done
 
 
 ## Default values, which can be read from the $argsFile
-posArgs=("firstStage" "lastStage" "trueRep" "coresPeaks" "coresStg"
-	 "specName" "specList" "specTar" "isInpNested"
-         "inpExt" "exePath" "funcList" "postScript")
+posArgs=("inpExt" "isInpNested" "firstStage" "lastStage" "trueRep"
+         "coresPeaks" "coresStg"
+         "exePath" "funcList" "postScript"
+         "specName" "specList" "chrmSz" "blackList")
 
 #rewrite stages!
+inpExt="nodup.tagAlign.gz" #extension of original input data (before tagStage)
+isInpNested="true"	#if all files in one dir or in subdirs: rep$i, ctl$i
 firstStage="download"		#starting stage of the pipeline 
 lastStage="peaks"		#ending stage of the pipeline
 trueRep="false"		#whether to use true replicates or not
-specName="hg19"		#names of species: hg38, hg19, mm10, mm9 
-specList="spec.list"	#list with all species
-specTar="spec.tar.gz"	#tar files w/ all species files
-ctlDepthRatio="1.2"	#ratio to compare ctl files to pool
-isInpNested="true"	#if all files in one dir or in subdirs: rep$i, ctl$i
-inpExt="nodup.tagAlign.gz" #extension of original input data (before tagStage)
 coresPeaks="4"          #number of cores for spp peaks caller
 coresStg="1"            #number of cores for signal track generation (Macs2) 
 exePath="$homePath/exeAquas.sh"
 funcList="$homePath/funcList.sh"
 postScript="$homePath/postScript.sh"
 
+specName="hg19"		#names of species: hg38, hg19, mm10, mm9 
+specList="spec.list"	#list with all species
+chrmSz="" #for stg and peaks
+blackList="" #for peaks
+
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
 fi
 
 ReadArgs "$argsFile" "1" "Aquas" "${#posArgs[@]}" "${posArgs[@]}" > /dev/null
-if [[ "${resPath:0:1}" != "/" ]]; then
-    ErrMsg "The full path for resPath has to be provided.
-           Current value is: $resPath ."
-fi
-
 PrintArgs "$curScrName" "${posArgs[@]}" "jobsDir"
+
+for i in exePath postScript funcList resPath; do
+  eval "strTmp=\"\$$i\""
+  if [[ "${strTmp:0:1}" != "/" ]]; then
+    ErrMsg "The full path for $i has to be provided:
+           Current value is: $strTmp"
+fi
+done
+
 
 firstStage=$(MapStage "$firstStage")
 lastStage=$(MapStage "$lastStage")
@@ -531,9 +537,9 @@ if [[ $firstStage -le $pseudoStage && $lastStage -ge $pseudoStage &&\
              >> "$dagFile"
       
       # args file
-      printf -- "-nth\t\t1\n" >> $jobArgsFile
-      printf -- "-tag\t\t${repTag[0,$((j-1))]##*/}\n" >> $jobArgsFile
-      printf -- "-rep\t\t$j\n" >> $jobArgsFile
+      printf -- "-nth\t\t1\n" > "$jobArgsFile"
+      printf -- "-tag\t\t${repTag[0,$((j-1))]##*/}\n" >> "$jobArgsFile"
+      printf -- "-rep\t\t$j\n" >> "$jobArgsFile"
 
       # Parent & Child dependency 
       # pool
@@ -603,9 +609,9 @@ if [[ "$firstStage" -le "$xcorStage" && "$lastStage" -ge "$xcorStage" ]]; then
              >> "$dagFile"
       
       # args file
-      printf -- "-nth\t\t1\n" >> $jobArgsFile
-      printf -- "-tag\t\t${repTag[0,$((i-1))]##*/}\n" >> $jobArgsFile
-      printf -- "-rep\t\t$i\n" >> $jobArgsFile
+      printf -- "-nth\t\t1\n" > "$jobArgsFile"
+      printf -- "-tag\t\t${repTag[0,$((i-1))]##*/}\n" >> "$jobArgsFile"
+      printf -- "-rep\t\t$i\n" >> "$jobArgsFile"
 
       # Parent & Child dependency
       # peak
@@ -659,7 +665,7 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" &&\
     # Reps and PR: pr0-2
     for ((i=0; i<$rowNum; i++)); do
       jobArgsFile[$i]="$jobsDir/${jobName}Pr$i.args"
-      printf -- "-nth\t\t1\n" >> "${jobArgsFile[$i]}"
+      printf -- "-nth\t\t1\n" > "${jobArgsFile[$i]}"
 
       hdTmp[$i]=0
       for ((j=1; j<=$colNum; j++)); do #number of reps
@@ -684,7 +690,7 @@ if [[ "$firstStage" -le "$poolStage" && "$lastStage" -ge "$poolStage" &&\
         nTmp=${#jobArgsFile[@]}
 	jobArgsFileTmp="$jobsDir/${jobName}Ctl.args"
 	jobArgsFile[$nTmp]="$jobArgsFileTmp"
-	printf -- "-nth\t\t1\n" >> "$jobArgsFileTmp"
+	printf -- "-nth\t\t1\n" > "$jobArgsFileTmp"
 
 	# Fill these files
         hdTmp[$nTmp]=0
@@ -795,6 +801,30 @@ done
 stIterTmp=("$stgName" "$peakName")
 for stIter in "${stIterTmp[@]}"; do
   stTmp=$(MapStage "$stIter")
+
+  if [[ -z $(RmSp "$specName") ]]; then
+      ErrMsg "For $stIter chromosome size, species name and species list
+              should be defined."
+  fi
+
+  for i in specList chrmSz; do
+    eval "strTmp=\"\$$i\""
+    if [[ "${strTmp:0:1}" != "/" ]]; then
+        ErrMsg "The full path for $i has to be provided:
+           Current value is: $strTmp"
+    fi
+  done
+
+  if [[ -z $(RmSp "$blackList") ]]; then
+      WarnMsg "For $stIter blackList is empty."
+  else
+    if [[ "${blackList:0:1}" != "/" ]]; then
+        ErrMsg "The full path for blackList has to be provided:
+           Current value is: $blackList"
+    fi
+  fi
+
+  
   if [[ $firstStage -le $stTmp && $lastStage -ge $stTmp && $ctlNum -ge 1 ]]; then
       jobName="$stIter"
 
@@ -890,8 +920,13 @@ $(basename ${repName[$((i-1))]%.$inpExt}).nodup.15M.cc.qc"
 	  fi
 
           hd=$((hd + 9)) #for software
-          transFilesTmp="$(JoinToStr ", " "${inpTmp[$j]}" "${inpCtlTmp}"\
-                           "${inpXcorTmp[@]}")"
+          transFilesTmp=("${inpTmp[$j]}" "${inpCtlTmp}" "${inpXcorTmp[@]}"
+                         "$chrmSz" "$specList")
+          if [[ -n $(RmSp "$blackList") ]]; then
+              transFilesTmp=("${transFilesTmp[@]}" "$blackList")
+          fi  
+
+          transFilesTmp="$(JoinToStr ", " "${transFilesTmp[@]}")"
 
           if [[ $j -gt 0 ]]; then
               PrintfLineSh >> "$dagFile"
@@ -916,22 +951,25 @@ $(basename ${repName[$((i-1))]%.$inpExt}).nodup.15M.cc.qc"
                  >> "$dagFile"
 
 	  # args file
-	  printf -- "-nth\t\t$nCoresTmp\n" >> $jobArgsFile
-	  printf -- "-tag\t\t${inpTmp[$j]##*/}\n" >> $jobArgsFile
-	  printf -- "-ctl_tag\t\t${inpCtlTmp##*/}\n" >> $jobArgsFile
+          printf -- "-species\t\t$specName\n" > "$jobArgsFile"
+          printf -- "-species_file\t\t${specList##*/}\n" >> "$jobArgsFile"
+          
+	  printf -- "-nth\t\t$nCoresTmp\n" >> "$jobArgsFile"
+	  printf -- "-tag\t\t${inpTmp[$j]##*/}\n" >> "$jobArgsFile"
+	  printf -- "-ctl_tag\t\t${inpCtlTmp##*/}\n" >> "$jobArgsFile"
 
 	  if [[ "$stIter" != "$stgName" ]]; then
-	      printf -- "-pr\t\t$j\n" >> $jobArgsFile
+	      printf -- "-pr\t\t$j\n" >> "$jobArgsFile"
 	  fi
 
 	  if [[ "$i" -eq "0" ]]; then
 	      for ((k=1; k<=$repNum; k++)); do			
 		printf -- "-xcor_qc$k\t\t${inpXcorTmp[$((k-1))]##*/}\n"\
-		       >> $jobArgsFile
+		       >> "$jobArgsFile"
 	      done
 	  else
-	    printf -- "-rep\t\t$i\n" >> $jobArgsFile
-	    printf -- "-xcor_qc\t\t${inpXcorTmp##*/}\n" >> $jobArgsFile
+	    printf -- "-rep\t\t$i\n" >> "$jobArgsFile"
+	    printf -- "-xcor_qc\t\t${inpXcorTmp##*/}\n" >> "$jobArgsFile"
 	  fi
           
 	  # Parent & Child dependency
