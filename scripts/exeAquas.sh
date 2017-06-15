@@ -73,7 +73,7 @@ bdsSignal=0 #to catch segmentation fault
 if [[ $bdsCode -ne 0 ]]; then
     echo "bds was not successful! Error code: $bdsCode"
     # Catching segmentation fault
-    bdsSig=$(head -n 1 peaksRep0Pr1.4402780.err |\
+    bdsSignal=$(head -n 1 _condor_stderr |\
                  awk -v segv="$(kill -l SEGV)"\
                      '{if ($0 ~ "Segmentation fault"){print segv}
                        else {print 0}}')
@@ -98,7 +98,8 @@ fi
 
 echo "[End]  $curScrName"
 EchoLineBold
-if [[ $bdsSign -eq $(kill -l SEGV) ]]; then
+
+if [[ $bdsSignal -eq $(kill -l SEGV) ]]; then
     echo "Segmentation fault happens!"
     kill -s SEGV $$
 fi
