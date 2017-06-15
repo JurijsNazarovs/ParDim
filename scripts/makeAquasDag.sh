@@ -797,7 +797,6 @@ for stIter in "${stIterTmp[@]}"; do
   stTmp=$(MapStage "$stIter")
   if [[ $firstStage -le $stTmp && $lastStage -ge $stTmp && $ctlNum -ge 1 ]]; then
       jobName="$stIter"
-      inpExt="tagAlign.gz"
 
       if [[ "$stIter" = "$stgName" ]]; then
 	  prNumTmp=0
