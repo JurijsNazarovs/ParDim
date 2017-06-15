@@ -27,6 +27,7 @@ rm "$softTar"
 
 echo "BASH: $BASH_VERSION"
 echo "ZSH: $ZSH_VERSION"
+ls
 
 source ./pipePath.source
 bash ./pipeInstall.sh
