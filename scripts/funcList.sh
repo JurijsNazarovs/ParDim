@@ -42,7 +42,7 @@ PrintfLineBoldSh(){
 }
 
 
-## Base functions. Functions, which are included in other (void)
+## Base functions. Functions, which are included in other
 
 RmSp(){
   # Function returns the same line but without any spaces
@@ -53,7 +53,7 @@ RmSp(){
 JoinToStr(){
   # Join all element of an array in one string
   # $1 is the splitting character
-  # >$1 everything to combine
+  # >$1 everything to combine (spaces are skipped)
   # Usage: JoinToStr "\' \'" "$a" "$b" ... or ("$a[@]")
   local spC=$1
   shift
@@ -62,9 +62,10 @@ JoinToStr(){
   shift
 
   local i
-  for i in "$@"
-  do
-    args="$args$spC$i"
+  for i in "$@"; do
+    if [[ -n $(RmSp "$i") ]]; then
+         args="$args$spC$i"
+    fi
   done
 
   echo "$args"    
