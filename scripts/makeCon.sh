@@ -17,8 +17,8 @@ args=${4:-""} #string of arguments from condor to executable" (1\ \2\ \3)
 transFiles=${5:-""} #files to transfer
 
 nCpus=${6:-"1"}
-memSize=${7:-"3"}
-diskSize=${8:-"10"}
+memSize=${7:-"1"}
+diskSize=${8:-"4"}
 
 transOut=${9:-""}
 transMap=${10:-""}
@@ -26,9 +26,7 @@ transMap=${10:-""}
 outName=${11:-"condor"}
 
 isRepeat=${12:-"true"} #1 - repeat in case of failure
-#isHold
 isGluster=${14:-"false"}
-
 
 
 ## Initial checking
@@ -56,23 +54,22 @@ getenv = true
 \n" >> "$conFile"
 
 if [[ "$isRepeat" = true ]]; then
-    # Job should only leave the queue if it exited on its own with status 0,
-    # to repeat jobs if there is a segmentation fault.
-   # printf "on_exit_remove = ( (ExitBySignal == False) && (ExitCode == 0) )\n"\
-    #       >> "$conFile"
+    nReps=3 #maximum number of times to repeat
+    # Job leaves the queue in any case except the segmentation fault
+    printf "on_exit_remove = (ExitBySignal == False) || (ExitSignal != 11)\n"\
+           >> "$conFile"
 
     # Put job on hold if it was restarted > 5 times
-    printf "on_exit_hold = (NumJobStarts > 5)\n" >> "$conFile"
+    printf "on_exit_hold = (NumJobStarts > $nReps)\n" >> "$conFile"
 
     # Release job from hold because of squid:
+    # The below will make sure that a job is still never released to run more
+    # than 3 times and that HTCondor will wait a little while (300 seconds)
+    # before releasing the job to try again.
     printf "periodic_release =  ((JobStatus == 5) && (HoldReasonCode == 12) && "\
             >> "$conFile"
-    printf "(NumJobStarts <= 5) && (CurrentTime - EnteredCurrentStatus) > 300)
+    printf "(NumJobStarts <= $nReps) && (CurrentTime - EnteredCurrentStatus) > 300)
            \n" >> "$conFile"
-    # The above will make sure that a job is still never released to run more
-    # than 5 times and that HTCondor will wait a little while (300 seconds)
-    # before releasing the job to try again.
-    
 fi
 
 
