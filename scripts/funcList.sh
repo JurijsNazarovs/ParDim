@@ -446,7 +446,9 @@ ReadArgs(){
   # "echo $foo" returns 23.
   #
   # If the variable is defined before reading file, and in file it is empty,
-  # then default value remains
+  # then default value remains.
+  #
+  # If no labels find at all, the whole file is read.
   #
   # Input:
   #       -argsFile   file with arguments
