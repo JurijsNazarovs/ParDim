@@ -68,10 +68,15 @@ fi
 
 # Necessary to do eval, since argsStr contains -OPTION as options
 eval "bds -c .bds/bds.config pipeScripts/\"$script\" ${argsStr[*]}"
-bdsFl=$?
-
-if [[ $bdsFl -ne 0 ]]; then
-    echo "bds was not successful! Error code: $bdsFl"
+bdsCode=$?
+bdsSignal=0 #to catch segmentation fault
+if [[ $bdsCode -ne 0 ]]; then
+    echo "bds was not successful! Error code: $bdsCode"
+    # Catching segmentation fault
+    bdsSig=$(head -n 1 peaksRep0Pr1.4402780.err |\
+                 awk -v segv="$(kill -l SEGV)"\
+                     '{if ($0 ~ "Segmentation fault"){print segv}
+                       else {print 0}}')
 else
   cd out
   mv !(report) ../"$resDir"
@@ -86,11 +91,16 @@ fi
 if [[ "$isDry" = false ]]; then
     mv !("$resDir") "$resDir"
     mv "$resDir"/_condor_std* ./
-    if [[ $bdsFl -eq 0 ]]; then
+    if [[ $bdsCode -eq 0 ]]; then
         mv "$resDir/$outTar" ./
     fi
 fi
 
 echo "[End]  $curScrName"
 EchoLineBold
-exit $bdsFl
+if [[ $bdsSign -eq $(kill -l SEGV) ]]; then
+    echo "Segmentation fault happens!"
+    kill -s SEGV $$
+fi
+
+exit $bdsCode

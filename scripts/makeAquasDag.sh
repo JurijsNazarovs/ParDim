@@ -372,7 +372,7 @@ conFile="$jobsDir/${curScrName%.*}.condor"
 bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$exePath"\
      "$argsCon" "$transFiles"\
      "\$(nCores)" "\$(ram)" "\$(hd)" "\$(transOut)" "\$(transMap)"\
-     "\$(conName)"
+     "\$(conName)" "true"
  
 
 ## Start the "$dagFile"
