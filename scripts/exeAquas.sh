@@ -96,7 +96,7 @@ if [[ "$isDry" = false ]]; then
     fi
 fi
 
-echo "[End]  $curScrName"
+echo "[End]  $curScrName: exit code is $bdsCode"
 EchoLineBold
 
 if [[ $bdsSignal -eq $(kill -l SEGV) ]]; then
