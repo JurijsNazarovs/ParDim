@@ -258,8 +258,18 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
       ChkExist f "$selectJobsListPath"\
                "List of selected directories: $selectJobsListPath"
       while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
-	ChkExist d "$dirPath" "selectJobsListPath: directory $dirPath"
+        ChkExist d "$dirPath" "selectJobsListPath: directory $dirPath"
+        strTmp=("${strTmp[@]}" "$(basename "$dirPath")")
       done < "$selectJobsListPath"
+      
+      # Chk duplicates of dirNames (basenames) to avoid overwriting
+      readarray -t strTmp <<< "$(ArrayGetDupls "${strTmp[@]}")"
+      if [[ -n "${strTmp[@]}" ]]; then
+          ErrMsg "In selectJobsListPath: $selectJobsListPath
+                  directories cannot have duplicate names.
+                  Duplicate directories: $(JoinToStr ", " "${strTmp[@]}")"
+      fi
+      strTmp=() #delete values for future use
     fi
     selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.XXXX)"
 fi
