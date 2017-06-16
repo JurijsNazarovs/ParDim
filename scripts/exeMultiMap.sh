@@ -87,7 +87,9 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
        "$fileWithContent"\
        "$resPath"\
        "$dirName"\
-       "${taskScript%.*}_$dirName" #unique name for transfer output +.tar.gz
+       "${taskScript%.*}_$dirName"
+  # "$dirName" - directory to save results and has to be tared with following:
+  # "${taskScript%.*}_$dirName" - unique name for transfer output +.tar.gz
   exFl=$? #exit value of creating dag
 
   if [[ "$exFl" -ne 0 ]]; then
