@@ -40,7 +40,7 @@ dagFile=${2:-"aquas.dag"} #create this
 jobsDir=${3:-"aquasTmp"} #working directory, provided with one of analysed dirs
 inpDataInfo=${4} #text file with input data
 resPath=${5:-"/tmp/aquas"} #return on submit server. Read from file if empty
-resDir=${6:-"resultedDir"}
+resDir=${6:-"resultedDir"} #directory where to save resutls
 transOut=${7:-"aquas"}
 outPath="$resPath/$resDir" #Used as input for stages after job was done
 
