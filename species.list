@@ -1,13 +1,13 @@
 [hg19]
-chrsz   = species/hg19.chrom.sizes
+chrsz   = hg19.chrom.sizes
 seq     = 
 gensz   = hs #genome size: hs for human, mm for mouse
 umap    = 
 umap_hic= 
-bwa_idx = species/hg19bwaidx
+bwa_idx =
 bwt_idx = 
 bwt2_idx = 
-blacklist = species/consensusBlacklist.bed
+blacklist = consensusBlacklist.bed
 
 tss_enrich = 
 ref_fa  = 
