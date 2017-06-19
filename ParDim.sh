@@ -321,8 +321,7 @@ EchoLineBoldSh
 echo "Pipeline structure in order:"
 echo ""
 
-for i in "${!task[@]}"
-do
+for i in "${!task[@]}"; do
   # Script
   printf "%0${nZeros}d. %-$((maxLenStr + nZeros))s %s\n"\
          "$((i + 1))"\
@@ -364,22 +363,17 @@ conMapArgs=("\$(taskScript)" #variable - script name executed by map.script
             "\$(dagFile)" #variable - output dag file name: jobsDir/map/dagName
             "\$(resPath)" #variable - partially path for results for task[i]
             "true" #is script submit from executed machine
-            "${selectJobsListInfo##*/}" #single and multi map
-            "${selectJobsListPath##*/}" #multi map
+            "\$(selectJobsListInfo)" #single and multi map
+            "\$(selectJobsListPath)" #multi map
            )
 
 conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
 for i in "${!task[@]}"; do
-  # Scripts used in mapping scripts
   strTmp="$scriptsPath/funcList.sh, $scriptsPath/makeCon.sh, \
-         ${taskScript[i]}"
-  conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}, $selectJobsListInfo"
-  
-  if [[ "${taskMap[$i]}" = multi ]]; then
-      conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
-  fi
+         ${taskScript[i]}"  #scripts used in mapping scripts
+  conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
 
   if [[ -n "${taskTransFiles[$i]}" ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, ${taskTransFiles[$i]}"
@@ -408,8 +402,7 @@ PrintfLine >> "$pipeStructFile"
 # Print the jobs section
 isFT="true" #is the First Task
 lastTask="" #last executed task for PARENT CHILD dependency
-for i in "${!task[@]}"
-do
+for i in "${!task[@]}"; do
   jobId="${task[$i]}"
   # Parent Child Dependency and prescripts
   if [[ "${taskMap[$i]}" = multi && -z $(RmSp "$lastTask") ]]; then
@@ -422,7 +415,11 @@ do
   if [[ -n $(RmSp "$lastTask")  ]]; then
       printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
       PrintfLineSh >> "$pipeStructFile"
+      
       # Need to create 2 files: file with dirs and file with content of dirs
+      selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
+      selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
+      
       printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
              "$pipeStructFile" 
       printf "FillListOfDirsAndContent $resPathTmp " >>\
@@ -431,6 +428,14 @@ do
              "$pipeStructFile"
       # resPathTmp is defined after task is executed. So, we have path for
       # results of a previous running job.
+  fi
+
+  if [[ "$jobId" != "$downloadTaskName" ]]; then
+      conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListInfo"
+  fi
+  
+  if [[ "${taskMap[$i]}" = multi ]]; then
+      conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
   fi
 
   # Print the condor job
@@ -456,6 +461,16 @@ do
          >> "$pipeStructFile"
   printf "VARS $jobId conName=\"${taskMap[$i]}.$jobId.\"\n"\
          >> "$pipeStructFile"
+  
+  if [[ "$jobId" != "$downloadTaskName" ]]; then
+      printf "VARS $jobId selectJobsListInfo=\"${selectJobsListInfo##*/}\"\n"\
+             >> "$pipeStructFile"
+  fi
+  if [[ "${taskMap[$i]}" = multi ]]; then
+      printf "VARS $jobId selectJobsListPath=\"${selectJobsListPath##*/}\"\n"\
+             >> "$pipeStructFile"
+  fi
+
   #printf "\n" >> "$pipeStructFile"
 
   # Path to return all results from jobs
