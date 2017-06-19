@@ -992,8 +992,20 @@ done
 ## idr and overlap
 if [[ $firstStage -le $idrOverlapStage && $lastStage -ge $idrOverlapStage &&\
           $ctlNum -ge 1 ]]; then
-    #inpExt="regionPeak.gz"
     jobArgsFileTmp=("$jobsDir/tmp.args")
+
+    if [[ -z $(RmSp "$specName") ]]; then #just for idr
+        ErrMsg "For $stIter chromosome size, species name and species list
+              should be defined."
+    fi
+
+    for i in specList chrmSz; do  #just for idr
+      eval "strTmp=\"\$$i\""
+      if [[ "${strTmp:0:1}" != "/" ]]; then
+          ErrMsg "The full path for $i has to be provided:
+           Current value is: $strTmp"
+      fi
+    done
 
     for ((i=0; i<$ctlNum; i++)); do
       if [[ "${useCtlPool[$i]}" = true ]]; then
@@ -1012,7 +1024,9 @@ if [[ $firstStage -le $idrOverlapStage && $lastStage -ge $idrOverlapStage &&\
     fi
     
     # Create input for args files for both idr and overlap
-    transFilesTmp=()
+    transFilesTmp=("$chrmSz" "$specList")
+    printf -- "-species\t\t$specName\n" > "$jobArgsFileTmp"
+    printf -- "-species_file\t\t${specList##*/}\n" >> "$jobArgsFileTmp"
     for ((i=0; i<=$repNum; i++)); do #0-pooled
       inpTmp=()
       if [[ "$i" -eq 0 ]]; then #i.e. pooled version
@@ -1068,7 +1082,7 @@ $strTmp.nodup.pr$j.tagAlign_x_"
 	      printf -- "_pr$j" >> "$jobArgsFileTmp"
 	  fi
 	fi
-	printf -- "\t\t${inpTmp[$j]}\n" >> "$jobArgsFileTmp"
+	printf -- "\t\t${inpTmp[$j]##*/}\n" >> "$jobArgsFileTmp"
         transFilesTmp=("${transFilesTmp[@]}" "${inpTmp[$j]}")
       done
     done
@@ -1111,7 +1125,7 @@ $strTmp.nodup.pr$j.tagAlign_x_"
              >> "$dagFile"
 
       # Post script to untar resulting files
-      printf "\nSCRIPT POST $jobIdTmp $postScript untarfiles $transMapTmp\n"\
+      printf "\nSCRIPT POST $jobId $postScript untarfiles $transMapTmp\n"\
              >> "$dagFile"
     done
 
