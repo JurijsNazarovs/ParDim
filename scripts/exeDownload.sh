@@ -52,9 +52,6 @@ for filePath in "${path[@]}"; do
   exFl=$? #exit value of coping
   if [[ "$exFl" -ne 0 ]]; then
       echo "Coping was not successful! Error code: $exFl"
-      #if [[ "$exFl" -eq 8 ]]; then
-      #    
-      #fi
       exit $exFl
   else
     echo "Success! Check file: $filePath"

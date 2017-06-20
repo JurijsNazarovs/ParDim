@@ -1,26 +1,22 @@
 #!/bin/bash
 # ==============================================================================
-# boostDownload.sh transforms table in a way to submit to condor job            
-# to reduce the number of downloading files.                                   
-# The result of the function is a file(table), which
-# has same name and extension  as an input table,
-# but the name will end with Tmp. Also, the path equals to the path of tmp fold
-# er.
+# boostDownload.sh - download uniques files adn distribute them in right
+# directories, with several options:
+#     - save files with original names or based on relative name according to
+#       pattern: relativeName.columnName.extensionOfRelName
+#       e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz
+#       Note: names for relativeName column is not changed
+#     - combine several files, splitted by tabDelimJoin, then
+#       final name is based on the name of 1st file. If it is relative name,
+#       then based on 1st name of relative names, if there are several to join.
 #
-# The output file looks like that: link, link for corresponding chip,
-# type (ctl, and etc), name of all experiments where this file is participating.
+# The result of the function is:
+#     - dagFile - description of jobs to download unique file
 #
-# The condaor jobs download all files based on links, and distribute
-# in right folders based on names of experiments, changing names based on types.
+# The final output file (removed) to generate dagFile looks like following:
+# size(for condor), link, all directories to copy.
 #
-# Input:
-#	-argsFile	file with all arguments for this shell
-#
-# Possible arguments are described in a section: ## Default values
-#
-# If join several files, then final name based on the name of 1st file
-# if it is relative name, then based on 1st name of relative names
-# if there are several to join.
+# Possible arguments are described in a section: ## Input and default values 
 # ==============================================================================
 
 ## Libraries and options
@@ -35,8 +31,9 @@ curScrName=${0##*/}
 argsFile=${1:-"args.listDev"} 
 dagFile=${2:-"download.dag"} #create this
 jobsDir=${3:-"downTmp"} #working directory
-resPath=${4:-""} #return on submit server. Can be read from file if empty
+resPath=${4:-""} #return here on submit server. Can be read from file if empty
 isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
+isSubmit=${7:-"true"} #false => dry run 
 
 ChkValArg "isCondor" "" "true" "false"
 argsFile="$(readlink -m "$argsFile")" #whole path
@@ -45,12 +42,10 @@ ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 # Read arguments from the $argsFile, given default values
 posArgs=("tabPath" "exePath"
          "tabDelim" "tabDelimJoin" "tabDirCol"
-         "tabRelNameCol" "tabIsSize" "nDotsExt"
-         "isSubmit")
+         "tabRelNameCol" "tabIsSize" "nDotsExt")
 
 tabPath=""		#[R] path for table
 exePath="$homePath/exeDownload.sh"
-isSubmit="false"        #false => dry run 
 isDispProgBar="true"    #use if results are not printed in file
 tabDelim=','		#delimeter to use in table
 tabDelimJoin=';'        #delimeter to use in table to join files
@@ -79,6 +74,17 @@ if [[ "${resPath:0:1}" != "/" ]]; then
     ErrMsg "The full path for resPath has to be provided.
            Current value is: $resPath ."
 fi
+
+if [[ "$isCondor" = false ]]; then
+    mkdir -p "$resPath"
+    if [[ "$?" -ne 0 ]]; then
+        ErrMsg "$resPath was not created."
+    else
+      # Directory might exist
+      ChkAvailToWrite "resPath"
+    fi
+fi
+
 ChkExist f "$tabPath" "Input file for $curScrName: $tabPath"
 PrintArgs "$curScrName" "${posArgs[@]}"
 WarnMsg "Make sure that resPath: $resPath
@@ -280,6 +286,32 @@ for i in "${colIter[@]}"; do
 done
 
 
+## Check if we have several equal final pathes
+awk -v FS="$tabDelim"\
+    '{for(i = 3; i <= NF; i++) {print $i}}'\
+    "$tabOut" > "$tabTmp1"
+sort "$tabTmp1" | uniq -d  > "$tabTmp2" #print duplicated directories
+
+errFl=0
+while IFS='' read -r line || [[ -n "$line" ]]; do
+  readarray -t line <<< "$(echo "$line" | tr "/" "\n")"
+  lineLen=${#line[@]}
+
+  WarnMsg "File ${line[$((lineLen-1))]}
+          is scheduled to download in 
+          directory ${line[$((lineLen-2))]}
+          more than once."
+
+  ((errFl++))
+done < "$tabTmp2"
+
+if [[ $errFl -ne 0 ]]; then
+    WarnMsg "Total warnings: $errFl
+             Possible reason: for sevaral equal directories same relative name
+             is provided, and parameter \"tabIsOrigName\" is false."
+fi
+
+
 ## Create condor to download files
 conOut="$jobsDir/conOut"
 mkdir -p "$conOut"
@@ -310,38 +342,6 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   ((iter++))
 done < "$tabOut"
 
-## Check if we have several equal final pathes
-awk -v FS="$tabDelim"\
-    '{for(i = 3; i <= NF; i++) {print $i}}'\
-    "$tabOut" > "$tabTmp1"
-sort "$tabTmp1" | uniq -d  > "$tabTmp2" #print duplicated directories
-
-errFl=0
-while IFS='' read -r line || [[ -n "$line" ]]; do
-  readarray -t line <<< "$(echo "$line" | tr "/" "\n")"
-  lineLen=${#line[@]}
-  if [[ $errFl -eq 0 ]]; then
-      EchoLineSh
-      printf "Warning!\n\n"
-  fi
-
-  printf "File \"${line[$((lineLen-1))]}\" "
-  printf "is scheduled to download in\n"
-  printf "directory \"${line[$((lineLen-2))]}\" "
-  printf "more than once.\n\n"
-
-  ((errFl++))
-done < "$tabTmp2"
-
-if [[ $errFl -ne 0 ]]; then
-    EchoLineSh
-    echo "Total warnings: $errFl"
-    echo "Possible reason: for sevaral equal directories same relative name"
-    echo "is provided, and parameter \"tabIsOrigName\" is false."
-    EchoLineSh
-    EchoLineSh
-fi
-
 
 ## Submit mainDAG.dag
 if [[ "$isSubmit" = true ]]; then
@@ -361,7 +361,7 @@ fi
   
 
 ## End
-rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3"
+rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3" #"$tabOut"
 
 if [[ "$isCondor" = false ]]; then
     echo "[End]  $curScrName"
