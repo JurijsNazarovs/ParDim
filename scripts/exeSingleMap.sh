@@ -1,22 +1,23 @@
 #!/bin/bash
 #===============================================================================
-# This script executes "makeDag.script" to create dag based on some input,
-# without running that for every directory as in exeMultiMap.shXS
+# This script executes "makeDag.script (for one directory)".
+#
+# Depending whether option condor is provided, the script have different ways
+# to create an output, that is: 
+#	- no condor => all files are created in $jobsDir
+#	- condor => all files are created on server in $jobsDir,
+#		    all files inside $jobsDir are tared together
+#		    and move back, including stdOut and stdErr.
 #
 # Input:
-#	- dagScript	script to create dag
-#	- argsFile	file with all arguments for the dagMaker script
-#	- argsLabsDelim delim to split line with labels for argsFile
-#	- argsLab       labels to read arguments in argsFile
-#	- dagName	name of the output dag, which collects all dags from 
-#			every folder using SPLICE. No path, just a name	
-#	- scriptsPath	path with all scripts for pipeline, in case of Condor
-#	- jobsDir	temporary directory for all created files with jobs
-#	- selectJobsTabPath path to table with dirs to execute
-#	- isCondor	false - no condor, true - condor. Default is true
+# - taskScript	script to create dag
+# - argsFile	file with all arguments for the dagMaker script
+# - dagName	name of the output dag, which collects all dags from 
+#		every folder using SPLICE
+# - resPath     resutls are written here. Should be the full path
+# - isCondor    false - no condor, true - condor
+# - selectJobsListInfo file with all information about directories
 #==============================================================================
-ls
-pwd
 ## Libraries, input arguments
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
@@ -65,14 +66,13 @@ if [[ "$isCondor" = true ]]; then
     # Create tar.gz file of everything inside $jobsDir folder
     tarName="${dagFile%.*}.tar.gz" #based on ParDim SCRIPT POST
     tar -czf "$tarName" "$jobsDir"
-    ls
+    
     # Has to hide all unnecessary files in tmp directories 
     dirTmp=$(mktemp -dq tmpXXXX)
     mv !("$dirTmp") "$dirTmp"
     mv "$dirTmp"/_condor_std* "$dirTmp/$tarName" "$dirTmp/$dagFile" ./
 fi
 
-## End
 echo "[End]  $taskScript"
 EchoLineSh
 exit 0
