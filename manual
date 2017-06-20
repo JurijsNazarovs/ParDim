@@ -57,4 +57,11 @@ Several possible behavior:
 
 
 
-exeMultiMap - how it works
+[exeMultiMap] - how it works
+create a working directory jobsDir with all curJobDir directories inside and
+other files created by taskScript
+
+the jobsDir is tared including name of the jobsDir and returned to submit machine,
+and untared. Thus, all files about specific script are in multDir/jobsDir
+
+

@@ -71,8 +71,13 @@ exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working dir
     which is wrong. I should provide tshis derectory. That is,
     transfer output have to have directory structure somehow. Best option is
     dirName/ - tarFile
+[-] in makeIdCtlPool.sh condor accepts transOut and transMap. Since they are
+    fixed, probably no need to pass them as arguments.
+[-] change posEnd in reading input. ALso, try to make code more concise
 The connection between dataPath and Download is hardcoded
 selectJobListPath is empty in case of pipeline = just Download
+
+[-] exeAquas/makeAquas - add specname as arguments
 
 Download has to be the first or single task
 
