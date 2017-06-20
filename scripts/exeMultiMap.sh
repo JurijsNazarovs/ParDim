@@ -84,8 +84,8 @@ while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
        "$argsFile"\
        "$dagFileInDir"\
        "$curJobDir"\
-       "$fileWithContent"\
        "$resPath"\
+       "$fileWithContent"\
        "$dirName"\
        "${taskScript%.*}_$dirName"
   # "$dirName" - directory to save results and has to be tared with following:
