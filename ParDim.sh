@@ -43,7 +43,7 @@ printf "%-35s %s\n"\
         "$PWD"
 EchoLineSh
 
-argsFile=${1:-"$homePath/args.listDev2"} #file w/ all arguments for this shell
+argsFile=${1:-"$homePath/args.listDev"} #file w/ all arguments for this shell
 isSubmit=${2:-"true"}
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
@@ -53,7 +53,7 @@ ChkValArg "isSubmit" "" "false" "true"
 ## Detect structure of the pipeline
 
 # Detect all possible labels of integrated tasks based on the patern:
-# ##[    scrLab  ]## - Case sensetive. Might be spaces before, after and inside,
+# ##[    scrLab]## - Case sensetive. Might be spaces before, after and inside,
 # but cannot split scrLab.
 awkPattern="\
 ^([[:space:]]*##)\
@@ -85,6 +85,10 @@ fi
 # Assign script, multimap, and files to transfer for a script
 nTask=0 #helps to keep the order of integrated tasks
 for i in "${taskPos[@]}"; do
+  if [[ "$i" = "$curScrName" ]]; then
+      continue
+  fi
+
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
@@ -103,6 +107,14 @@ for i in "${taskPos[@]}"; do
       if [[ "$curScrName" -ef "$script" ]]; then
           ErrMsg "$curScrName cannot be a script for $i,
               since it is the main pipeline script."
+      fi
+
+      # Checking args
+      if [[ -z $(RmSp "$args") ]]; then
+          args="${argsFile}"
+      else
+        args="$(readlink -m "$args")"
+        ChkExist f "$args" "File with arguments for $i: $args\n"
       fi
 
       # Checking map
@@ -124,14 +136,6 @@ for i in "${taskPos[@]}"; do
             fi
         fi
       done
-     
-      # Checking args
-      if [[ -z $(RmSp "$args") ]]; then
-          args="${argsFile}"
-      else
-        args="$(readlink -m "$args")"
-        ChkExist f "$args" "File with arguments for $i: $args\n"
-      fi
 
       # Assigning values to the corresponding script
       task["$nTask"]="$i"
@@ -212,6 +216,7 @@ if [[ "$jobsDir" = "/tmp"* ]]; then
                 If pipeline fails, please change jobsDir."
 fi
 jobsDir="$(readlink -m "$jobsDir")"
+dataPath="$(readlink -m "$dataPath")"
 
 echo "Creating the temporary directory:  $jobsDir"
 mkdir -p "$jobsDir"
