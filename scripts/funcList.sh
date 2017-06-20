@@ -1,7 +1,6 @@
 #!/bin/bash
 #========================================================
-# File contains description of functions which are used in
-# pipeDAG.sh, pipeDAGMaker.sh, pipeConMaker.sh, exeDAG.sh
+# File contains description of different functions
 #========================================================
 
 
@@ -278,25 +277,6 @@ ChkStages(){
 
 
 ## Mapping functions
-
-MapStage(){
-  # Function maps input to numbers for comparison purpose
-  # Input is the stage
-  case "$1" in
-    "")             echo 0;;
-    "download")     echo 1;;
-    "toTagOriginal")        echo 2;;
-    "pseudo")       echo 3;;
-    "xcor")         echo 4;;
-    "pool")         echo 5;;
-    "stgMacs2")     echo 6;;
-    "peaks")        echo 7;;
-    "idroverlap")   echo 8;; #becasue search for a computer is about 3-5mins,
-    #which is the time of idr
-    *)              echo -1
-  esac
-}
-
 InterInt(){
   # Function intersect 2 intervals
   # Is used to find inclussion of stages
