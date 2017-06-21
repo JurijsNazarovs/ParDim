@@ -159,10 +159,10 @@ if [[ ${#task[@]} -eq 0 ]]; then
 fi
 
 # Checking relResPath
-isDataPathInRelResPath=false # of time when relResPath = dataPath
+isDataPathInRelResPath=false #if relResPath = dataPath
 for i in "${taskRelResPath[@]}"; do
   if [[ -n $(RmSp "$i") ]]; then
-      if [[ "$i" = dataPath && "$isDataPathInRelResPath" = false ]]; then
+      if [[ "$i" = dataPath ]]; then
           isDataPathInRelResPath=true
           continue
       fi
@@ -174,7 +174,6 @@ for i in "${taskRelResPath[@]}"; do
       fi
   fi
 done
-
 
 # Checking duplication of scripts to give a warning
 readarray -t taskScriptDupl <<< "$(ArrayGetDupls "${taskScript[@]}")"
@@ -205,7 +204,7 @@ posArgs=("dataPath" # path for data, which is not neccesary resPath
                               #then all from dataPath
         )
 
-jobsDir=$(mktemp -duq dagTestXXXX)
+jobsDir=$(mktemp -duq dagTestXXXX) #default value
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
          > /dev/null
@@ -218,7 +217,7 @@ fi
 jobsDir="$(readlink -m "$jobsDir")"
 dataPath="$(readlink -m "$dataPath")"
 
-echo "Creating the temporary directory:  $jobsDir"
+echo "Creating the temporary directory: $jobsDir"
 mkdir -p "$jobsDir"
 if [[ "$?" -ne 0 ]]; then
     ErrMsg "$jobsDir was not created."
@@ -253,7 +252,8 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
                     to define directories for an analysis or
                     selectJobsListPath - list of analysed directories."
         fi
-
+        # If first and single task has single map, then no need in dataPath
+        # or selectJobsList. Maybe need just some argFile.
         selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
         if [[ "$isDownTask" = false && "${taskMap[0]}" = multi ]]; then 
             ChkExist d "$dataPath" "dataPath: $dataPath"
@@ -282,7 +282,11 @@ fi
 # selectJobsListPath and selectJobsListInfo are empty
 
 if [[ "$isDownTask" = true || "$isDataPathInRelResPath" = true ]]; then
-    echo "Creating the data directory:  $dataPath"
+    if [[ -z $(RmSp "$dataPath") ]]; then
+        ErrMsg "Please provide dataPath in $curScrName
+                to write resutls."
+    fi
+    echo "Creating the data directory: $dataPath"
     mkdir -p "$dataPath"
     if [[ "$?" -ne 0 ]]; then
         ErrMsg "$dataPath was not created."
@@ -293,17 +297,24 @@ if [[ "$isDownTask" = true || "$isDataPathInRelResPath" = true ]]; then
 fi
 
 if [[ -z $(RmSp "$resPath") ]]; then
-    if [[ -z $(RmSp "dataPath") ]]; then
+    if [[ -z $(RmSp "$dataPath") ]]; then
         ErrMsg "Path for results resPath is empty.
                Please provide an available for writing directory."
     else
-      resPath="${dataPath%/*}"
+      resPath="$(dirname "$dataPath")"
       WarnMsg "Path for results resPath is empty.
                The parent directory of $dataPath is set."
     fi
 fi
 resPath="$(readlink -m "$resPath")"
-ChkAvailToWrite "resPath"
+
+echo "Creating the resulting directory: $resPath"
+mkdir -p "$resPath"
+if [[ "$?" -ne 0 ]]; then
+    ErrMsg "$resPath was not created."
+else
+  ChkAvailToWrite "resPath"
+fi
 
 
 ## Define corresponding DAG files
@@ -476,10 +487,9 @@ for i in "${!task[@]}"; do
              >> "$pipeStructFile"
   fi
 
-  #printf "\n" >> "$pipeStructFile"
-
   # Path to return all results from jobs
-  if [[ "$jobId" = "$downloadTaskName" || "${taskRelResPath[$i]}" = dataPath ]]; then
+  if [[ "$jobId" = "$downloadTaskName" ||\
+            "${taskRelResPath[$i]}" = dataPath ]]; then
       resPathTmp="$dataPath"
   else
     if [[ -z $(RmSp "${taskRelResPath[$i]}") ]]; then
@@ -516,7 +526,8 @@ for i in "${!task[@]}"; do
 done
 
 ## Delete tmp folder $jobsDir
-#printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n" >> "$pipeStructFile"
+    #printf "#SCRIPT POST $lastTask $scriptsPath/postScript.sh $jobsDir \n"\
+        #    >> "$pipeStructFile"
 # [End] Print the jobs section - Stages
 
 ## Submit mainDAG.dag
