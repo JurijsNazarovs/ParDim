@@ -1,0 +1,143 @@
+[Common description]
+
+ParDim - software, which provides the framework (front end) for a simple
+procedure of creating pipeline by integrating different stages and paralleling
+the execution for a number of analyzed directorie, based on HT-Condor
+environment.
+
+The construction of a pipeline is completed in an intuitive description of
+stages in a text file, with ability to include/exclude a specific stage by
+changing the value of execute argument.
+
+Currently ParDim supports two types of executed scripts:
+  - multimapping scripts - same script has to be executed independent for each
+    directory in a pool of directories
+    Example: processing data for every experiment, where an experiment corresponds
+    to a directory.
+  - singlemapping script - script is executed for specific arguments. Usually,
+    it is some sort of prescritps before multimapping script.
+    Example: 1) list of links, which has to be downloaded.
+             2) text file, based on which different directories has to be created
+             3) the analysis of just single directory, to create an input for
+                multimapping script
+
+ParDim takes care of providing all necessary information about previous stage
+of pipeline to the next one. It also manages that results of a stage are
+transferred in a right directory in an organised way (according to a stage name).
+
+Since the ParDim is dedicated to manage the pipeline, the results for a current
+stage are the input for the following stage. More about that in section
+"Pipeline construction" - additional input.
+
+[Pipeline construction]
+
+To construst a pipeline the argument file (text file) is filled with specific
+syntax, but without a lot of constrains.
+
+The example of one stage, with all posible arguments is provided below:
+--------------------------------------
+##[ stageName ]##  
+execute                 true
+map                     single
+script                  /path/to/script
+args                    /path/to/argument/file/for/script
+transFiles              /path/to/different/files/to/transfer/using/,
+--------------------------------------
+Necessary input.
+There are 3 arguments which are neccesary to describe a pipeline stage
+  1. stageName - provided in a pattern (*S* - any number of spaces):
+     *S*##[*S*stageName*S*]##*S*
+     Note: stageName contains no spaces!
+  2. execute - boolean variable with values true/false. Indicates, it a stage
+     should be executed or not. If the stage is not executed,
+     if it just skipped. So, the no need to delete it from the argument file.
+  3. script - path to the script, which is executed to construct a dag.
+
+Additional input.
+  1. map - argument with 2 variables now: multi/single. Tells what is the type
+     of a stage. (more examples later)
+  2. args - path to argument file, which is used for script.
+     If the argument is empty, then the current file with description of the
+     pipeline is used for a script.
+     That means, that in the description of the stage you can provide
+     all other necessary information for the script, or create another file
+     and provide path to that file here
+  3. transFiles - path to all files, splitted by comma, which are used by
+     by a script. For example, if you have some libraries to send, you can
+     add them here. The file in args is transfering aoutmatically. So, no need
+     to worry.
+  4. relResPath - path for results relative to the part of the pipeline or
+     dataPath. Possible values are: previous/next stageName and dataPath.
+     That is, results for curent stage are saved in results directory of a
+     stage specified in relResPath.
+     Example: There is data in dataPath, and we need to create new additional
+     data in same directory. So, that next stage can read original + new data
+     from dataPath (or any stages).
+
+Note: ParDim.sh gives an error if something is wrong with scripts, args,
+transFiles, or relResPath.
+
+The pipeline is constructed in an order specified in the argument file. Two
+examples are provided below with the same structure of a file.
+
+Example 1: stage1 -> stage2 -> stage3
+
+##[ stage1  ]##
+execute    true
+...
+##[stage2   ]##
+execute    true
+...
+##[ stage3 ]##
+execute    true
+...
+
+Example 2: stage1 -> stage3
+
+##[ stage1  ]##
+execute    true
+...
+##[stage2   ]##
+execute    false
+...
+##[ stage3 ]##
+execute    true
+...
+
+
+[Main arguments for the ParDim]
+ParDim.sh "args.list" "isSubmit"
+
+1. args.list - list with arguments and constructed pipeline
+2. isSubmit  - boolean variable with values true/false. It value is false
+   then everything is prepared to run the pipeline, but does not run.
+   Default is true.
+
+
+In args.list there are 4 available arguments for the ParDim to initialize
+the pipeline. Variables have to be specified after the label: ##[ParDim.sh]##
+1. dataPath - path to analyzed data or resulting path for download stage
+   (later about that)
+2. resPath - path to results of the whole pipeline. By default every stage
+   creates its own directory corresponding to a stage name.
+3. jobsDir - temporary directory for all files generated by ParDim
+4. selectJobsListPath - initial list of directories for the analysis
+
+Possible combinations of providing arguments:
+1. If there are tasks except the Download:
+   [First task = multiTask]
+   - selectJobsListPath = empty & dataPath = empty => Err
+   - selectJobsListPath = empty & dataPath != empty =>
+     selectJobsListPath is filled by dirs from dataPath
+   [First task = singleTask]
+   - selectJobsListPath = empty => create one (there is no need for that)
+   [First task = singleTask/multiTask]
+   - selectJobsListPath != empty => check that all dirs exist and no duplicates
+     in basenames (basenames are used for output => avoid overwriting of files)
+2. If there is Download task or dataPath is used as relPath for any stage
+   - dataPath = empty or impossible to write => Err
+   - dataPath = resPath for Download
+3. General case
+   - resPath = empty & dataPath = empty => Err
+   - resPath = empty & dataPath = empty => resPath=dirname(dataPath)
+   - jobsDir = empty => created temporary with unique name
