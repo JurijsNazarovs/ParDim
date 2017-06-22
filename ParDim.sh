@@ -89,6 +89,11 @@ for i in "${taskPos[@]}"; do
       continue
   fi
 
+  if [[ "$i" =~ ("+"|".") ]]; then
+      ErrMsg "Task name $i
+             cannot contain + or \".\"."
+  fi
+
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
