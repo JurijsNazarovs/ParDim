@@ -33,7 +33,8 @@ delim=${5:-,} #delimeter to use for output files
 
 
 ## Prior parameters
-mkdir -p "$reportDir"
+jobsDir="$(readlink -m "$jobsDir")"
+reportDir="$(readlink -m "$reportDir")"
 
 mainPipelineFile="$jobsDir/pipelineMain.dag.dagman.out"
 queuJobsFile="$reportDir/$task.queuedJobs.list"
@@ -48,9 +49,12 @@ compDirsFile="$reportDir/$task.compDirs.list"
 
 PrintArgs "$curScrName" "task" "jobsDir"  "reportDir" "holdReason"
 
+ChkExist "d" "$jobsDir" "Working directory: $jobsDir \n"
+ChkExist "f" "$mainPipelineFile" "Main pipeline info file: $mainPipelineFile \n"
+
 
 ## Detect the string for submitting node with all argumets
-awkPattern="submitting: .* -a dag_node_name' '=' '$task"
+awkPattern="submitting: .* -a dag_node_name' '=' '$task -a \\\+DAGManJobId"
 submitStr="$(
   awk -v pattern="$awkPattern"\
       '{
@@ -60,6 +64,13 @@ submitStr="$(
            }
        }' "$mainPipelineFile"
          )"
+
+if [[ -z $(RmSp "${submitStr}") ]]; then
+    ErrMsg "Task $task has no story of execution
+           in the directory $jobsDir.
+           History file: $mainPipelineFile"
+fi
+mkdir -p "$reportDir"
 
 
 ## Detect the map used for the task
@@ -86,6 +97,8 @@ if [[ "$taskMap" = *Multi* ]]; then
     tmpFile3="$reportDir/$(mktemp -duq tmp.XXXX)"
 
     logFile="$jobsDir/multiMap/$task/$task.dag.dagman.out"
+
+    
     ## Queued jobs
     printf "Queued jobs ... "
     # File1. 2 columns: Dag#, condorJob, condorId
