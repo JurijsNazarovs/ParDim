@@ -22,7 +22,7 @@
 ## Libraries and options
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$homePath"/funcList.sh
+source "$homePath"/funcListParDim.sh
 
 curScrName=${0##*/}
 

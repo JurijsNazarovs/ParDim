@@ -7,7 +7,7 @@
 ## Libraries
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$homePath"/funcList.sh #call file with functions
+source "$homePath"/funcListParDim.sh #call file with functions
 
 ## Input
 conFile=${1:-"condor.tmp"}

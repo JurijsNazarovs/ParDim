@@ -26,7 +26,7 @@
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
-source "$homePath"/funcList.sh #call file with functions
+source "$homePath"/funcListParDim.sh #call file with functions
 
 curScrName=${0##*/}
 EchoLine
