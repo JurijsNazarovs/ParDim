@@ -17,8 +17,9 @@
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 scriptsPath="$homePath/scripts"
-source "$scriptsPath"/funcList.sh
-echo "$homePath"
+funcListPath="$scriptsPath"/funcListParDim.sh
+source "$funcListPath"
+
 curScrName=${0##*/} #delete all before last backSlash
 #curScrName=${curScrName%.*} #delete extension
 downloadTaskName="Download" #several parts of the code depend on the name of
@@ -272,7 +273,8 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
         strTmp=("${strTmp[@]}" "$(basename "$dirPath")")
       done < "$selectJobsListPath"
       
-      # Chk duplicates of dirNames (basenames) to avoid overwriting
+      # Chk duplicates of dirNames (basenames) in selectJobsListPath
+      # to avoid overwriting
       readarray -t strTmp <<< "$(ArrayGetDupls "${strTmp[@]}")"
       if [[ -n "${strTmp[@]}" ]]; then
           ErrMsg "In selectJobsListPath: $selectJobsListPath
@@ -392,13 +394,28 @@ conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
 for i in "${!task[@]}"; do
-  strTmp="$scriptsPath/funcList.sh, $scriptsPath/makeCon.sh, \
+  strTmp="$funcListPath, $scriptsPath/makeCon.sh, \
          ${taskScript[i]}"  #scripts used in mapping scripts
   conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
 
   if [[ -n "${taskTransFiles[$i]}" ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, ${taskTransFiles[$i]}"
   fi
+
+  # Check transfer files have no duplicates in basenames,
+  # to avoid overlapping on executed server
+  readarray -t strTmp <<< "$(echo ${conMapTransFiles[$i]} | tr "," "\n")"
+  for j in "${!strTmp[@]}"; do
+    strTmp[$j]="$(basename "${strTmp[$j]}")"
+  done
+
+  readarray -t strTmp <<< "$(ArrayGetDupls "${strTmp[@]}")"
+  if [[ -n "${strTmp[@]}" ]]; then
+      ErrMsg "There are duplicates in basenames among transfering files.
+             Possible overlapping with system files.
+             Duplicates: $(JoinToStr ", " "${strTmp[@]}")"
+  fi
+  strTmp=() #delete values for future use
 done
 
 bash "$scriptsPath"/makeCon.sh "$conMap" "$conMapOutDir"\
