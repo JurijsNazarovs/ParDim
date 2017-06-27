@@ -8,7 +8,7 @@
 ## Libraries/Input
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
-source "$homePath"/funcList.sh
+source "$homePath"/funcListParDim.sh
 curScrName=${0##*/}
 
 task="${1,,}" #${a,,} = lower case
@@ -49,9 +49,19 @@ FillListOfContent(){
   local inpFile="$1"
   local outFile="$2"
   ChkEmptyArgs "inpFile" "outFile"
+  
+  if [[ ! -s "$inpFile" ]] ; then
+      ErrMsg "The file with directories is empty"
+  fi
 
   printf ""  > "$outFile"
+  
   while IFS='' read -r dirPath || [[ -n "$dirPath" ]]; do
+    if [[ "$dirPath" = "." ]]; then
+        continue
+    fi
+
+    ChkExist d "$dirPath" "Directory"
     ls -lR "$dirPath" |
         awk\
     '{
@@ -60,6 +70,10 @@ FillListOfContent(){
         if (NF == 1) {print}
      }' >> "$outFile"
   done < "$inpFile"
+
+  if [[ ! -s "$outFile" ]] ; then
+      ErrMsg "The file with content is empty"
+  fi
 }
 
 ## Main part - selection based on task
