@@ -263,7 +263,9 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
         selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
         if [[ "$isDownTask" = false && "${taskMap[0]}" = multi ]]; then 
             ChkExist d "$dataPath" "dataPath: $dataPath"
-            ls -d "$dataPath/"*/ > "$selectJobsListPath" 
+            #ls -d "$dataPath/"*/ > "$selectJobsListPath"
+            find "$dataPath/" -mindepth 1 -maxdepth 1 -type d \
+                 > "$selectJobsListPath"
         fi
     else
       ChkExist f "$selectJobsListPath"\

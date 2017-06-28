@@ -38,7 +38,8 @@ FillListOfDirs(){
   local inpPath="${1}"
   local outfile="$2"
   ChkEmptyArgs "outfile" "inpPath"
-  ls -d "$inpPath/"*/ > "$outfile"
+  #ls -d "$inpPath/"*/ > "$outfile"
+  find "$inpPath/" -mindepth 1 -maxdepth 1 -type d > "$outfile"
   if [[ "$?" -ne 0 ]]; then
       ErrMsg "Something went wrong with filling the list $outfile.
                Error: $?" "$?"
