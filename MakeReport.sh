@@ -8,8 +8,8 @@
 # 5. *.holdJobs.list - jobs on hold given reason $holdReason
 # 
 # 6. *.summaryJobs.list - summary info about dirs
-# 7. *.notCompDirs.lis - path to not completed dirs, if $inpPath is provided
-# 8. *.compDirs.lis - path to completed dirs, if $inpPath is provided
+# 7. *.notCompDirs.list - path to not completed dirs
+# 8. *.compDirs.list - path to completed dirs
 #
 # holdReason="" - all hold jobs
 # ==============================================================================
@@ -17,7 +17,7 @@
 ## Libraries, input from the line arguments
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 scriptsPath="$homePath/scripts"
-source "$scriptsPath"/funcList.sh
+source "$scriptsPath"/funcListParDim.sh
 
 curScrName=${0##*/} #delete all before last backSlash
 
@@ -92,9 +92,9 @@ taskMap="$(
 if [[ "$taskMap" = *Multi* ]]; then
     echo "Task $task corresponds to multi map"
     
-    tmpFile1="$reportDir/$(mktemp -duq tmp.XXXX)"
-    tmpFile2="$reportDir/$(mktemp -duq tmp.XXXX)"
-    tmpFile3="$reportDir/$(mktemp -duq tmp.XXXX)"
+    tmpFile1="$reportDir/$(mktemp -uq tmp.XXXX)"
+    tmpFile2="$reportDir/$(mktemp -uq tmp.XXXX)"
+    tmpFile3="$reportDir/$(mktemp -uq tmp.XXXX)"
 
     logFile="$jobsDir/multiMap/$task/$task.dag.dagman.out"
 
@@ -251,7 +251,7 @@ fi
 if [[ "$taskMap" = *Single* ]]; then
     echo "Task $task corresponds to single map"
 
-    tmpFile1="$reportDir/$(mktemp -duq tmp.XXXX)"
+    tmpFile1="$reportDir/$(mktemp -uq tmp.XXXX)"
     
     logFile="$jobsDir/singleMap/$task/$task.dag.dagman.out"
     ## Queued jobs
