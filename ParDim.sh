@@ -129,11 +129,15 @@ for i in "${taskPos[@]}"; do
       # Checking files to transfer"
       readarray -t transFiles <<<\
                 "$(awk\
-                   '{ gsub(/,[[:space:]]*/, "\n"); print }' <<< "$transFiles"
+                   '{gsub(/,[[:space:]]*/, "\n"); print }' <<< "$transFiles"
                   )"
       for j in "${!transFiles[@]}"; do
         if [[ -n $(RmSp "${transFiles[$j]}") ]]; then
-            transFiles[$j]="$(readlink -m "${transFiles[$j]}")"
+            #transFiles[$j]="$(readlink -m "${transFiles[$j]}")"
+            if [[ "${transFiles[$j]:0:1}" != "/" ]]; then
+                transFiles[$j]="$(dirname "$script")/${transFiles[$j]}"
+            fi
+
             ChkExist f "${transFiles[$j]}" "transFile for $i: ${transFiles[$j]}\n"
             if [[ -z "${taskTransFiles[$nTask]}" ]]; then
                 taskTransFiles[$nTask]="${transFiles[$j]}"
@@ -396,8 +400,7 @@ conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
 for i in "${!task[@]}"; do
-  strTmp="$funcListPath, $scriptsPath/makeCon.sh, \
-         ${taskScript[i]}"  #scripts used in mapping scripts
+  strTmp="$funcListPath, ${taskScript[i]}"  #scripts used in mapping scripts
   conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
 
   if [[ -n "${taskTransFiles[$i]}" ]]; then
