@@ -48,7 +48,7 @@ bash "$taskScript"\
      "$dagFile"\
      "$jobsDir"\
      "$resPath"\
-     "selectJobsListInfo"
+     "$selectJobsListInfo"
 exFl=$?
 
 if [[ "$exFl" -ne 0 ]]; then
