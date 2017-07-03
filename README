@@ -1,48 +1,347 @@
-Description of current pipeline:
+[Common description]
 
-ParDim.sh - main shell script which reads file with arguments and generates the main dag, with 3 possible tasks.
-args.list - files with arguments for pipeDag.sh
+ParDim - software, which provides the framework (front end) for a simple
+procedure of creating pipeline by integrating different stages and paralleling
+the execution for a number of analyzed directories, based on HTCondor
+environment.
 
-pipeDag.sh is executed, providing list with arguments
+The flow of ParDim is dedicated to 2 steps:
+    - construct the DAG file (let call a script to construct DAG file as DagMaker)
+    - execute the constructed DAG file
+Thus, to design a stage for ParDim, user has to provide a script - DagMaker,
+which creates a DAG condor file, and ParDim handles its execution. 
 
-exeMultiDag.sh - executed by condor (or not), to execute another script for every folder
-checkArgsList.sh - checks the argument file
+The construction of a pipeline is completed in an intuitive description of
+stages in a text file, with ability to include/exclude a specific stage by
+changing the value of execute argument.
 
-funcList.sh - list of all functoins, which are used everywhere. New function => in funcList.sh
-makeAquasDag.sh - Aquas dag maker
-makeCon.sh - Condor maker
+Currently ParDim supports two types of executed scripts:
+  - multi-mapping scripts - same script has to be executed independently for each
+    directory in a pool of directories.
+    Example: processing data for every experiment, where an experiment corresponds
+    to a directory.
+  - single-mapping script - script is executed for specific arguments. Usually,
+    Single-mapping script is a preprocess script for multi-mapping script.
+    Example: 1) list of links, which has to be downloaded.
+             2) text file, based on which different directories have to be created
+             3) the analysis of just single directory, to create an input for
+                multi-mapping script
 
-something new
+ParDim provides all necessary information about a previous stage
+of pipeline to a next stage using text files. It manages that results of a
+stage are transferred in a right directory in an organized way
+(according to a stage name).
 
-makeReport - creates several useful files with information about submitted jobs
+Since the ParDim is dedicated to manage the pipeline, the results for a current
+stage are the input for the following stage. More about that in section
+"Pipeline construction" - additional input.
 
 
-## boostDownload.sh
-If not original name then names are taken from columns as extension using
+[Pipeline construction]
+
+To construct a pipeline, the argument file (text file) is filled with specific
+syntax.
+
+Necessary input.
+There are 3 arguments which are nessecary to describe a pipeline stage
+  1. stageName - provided in a pattern (*S* - any number of spaces):
+     *S*##[*S*stageName*S*]##*S*
+     
+     Note: stageName contains no spaces!
+  2. execute - boolean variable with values true/false. Indicates, if a stage
+     should be executed or not. If the stage is not executed,
+     it is just skipped. So, there is no need to delete it from the argument file.
+  3. script - path to the script, which is executed to construct a DAG.
+  
+     Note: if not full path is provided, then path is assumed to be relative to a
+     directory, where ParDim is executed. 
+
+Additional input.
+  1. map - argument with 2 values (now): multi/single. Tells what is the type
+     of a stage. (more examples later)
+  2. args - path to argument file, which is used for script.
+     If the argument is empty, then the current file with description of the
+     pipeline is used for a script.
+     That means, that in the description of the stage you can provide
+     all other necessary information for the script, or create another file
+     and provide path to that file here.
+     
+     Note: if not full path is provided, then path is assumed to be relative to a
+     directory, where ParDim is executed.
+  3. transFiles - path to all files, splited by comma (and spaces), which are used by
+     a script. For example, if you have some libraries to send, you can
+     add them here.
+     
+     Note: if not full path is provided, then the dirname of script is
+     considered as a root path of transFiles.
+
+     Note: Files corresponding to arguments "args" and "script" are transferred
+     automatically.
+  4. relResPath - path for results relative to the part of the pipeline or
+     dataPath. Possible values are: previous/next stageName and dataPath.
+     That is, results for current stage are saved in results directory of a
+     stage specified in relResPath.
+     Example: There is data in dataPath, and we need to create new additional
+     data in same directory. So, that next stage can read original + new data
+     from dataPath (or any stages). Then relResPath is dataPath.
+
+Note: ParDim.sh provides an error if something is wrong with scripts, args,
+transFiles, or relResPath.
+
+The example of one stage with all possible arguments is provided below:
+--------------------------------------
+##[ stageName ]##  
+execute                 true/false
+map                     single/multi
+script                  /path/to/script
+args                    /path/to/argument/file/for/script
+transFiles              /path/to/different/files/to/transfer/using/,
+--------------------------------------
+
+The pipeline is constructed in an order specified in the argument file. Two
+examples are provided below with the same structure of a arguments file.
+
+Example 1: stage1 -> stage2 -> stage3
+
+##[ stage1  ]##
+execute    true
+...
+##[stage2   ]##
+execute    true
+...
+##[ stage3 ]##
+execute    true
+...
+
+Example 2: stage1 -> stage3
+
+##[ stage1  ]##
+execute    true
+...
+##[stage2   ]##
+execute    false
+...
+##[ stage3 ]##
+execute    true
+...
 
 
-## Structure of pipeline
+[Main arguments for the ParDim]
 
-Structure is following:
-Repeat for all task in a right order:
-       1) create dag using "taskScript"
-       2) execute dag with name "taskDag"
+ParDim.sh is a bash script and executed as:
 
-[Create dag]
-     Downloading: boostDownload.sh is executed to create dag.
-     Any other: exeMultiDag.sh is executed to create dag corresponding to taskScript - dagMaker.
+1. bash /path/to/ParDim.sh "args.list" "isSubmit"
+or
+2. /path/to/ParDim.sh "args.list" "isSubmit"
+or
+3. you can add path in your .bash_profile file as following:
+export PATH="/path/to/ParDim/":$PATH and execute ParDim.sh as just
+ParDim.sh "args.list" "isSubmit"
 
-[exeMultiDag.sh]
-     This script executes "makeDag.script (for one folder)" for selected or all
-     jobs in inpPath and collect names of all constructed dags in one file
-     (using SPLICE). Output dag is taskDag
 
-[taskDag]
-     File, where each row correspond to "SPLICE DAG# pathToDagForSpecificFolder".
-     Thus, we have number of lines equal to number of analysed folders.
+1. args.list - list with arguments and constructed pipeline.
+   The default value is args.list in root directory of ParDim.sh
+2. isSubmit  - boolean variable with values true/false.
+   If value is false, then everything is prepared to run the pipeline, but
+   does not run. It is created to test the structure to make sure everything
+   is ok.
+   Default is true, which means run the whole pipeline.
 
-[DagForSpecificFolder]
-     Has a structure of condor jobs using Parent-Child Hierarchy.
-     Independent nodes are exucuted on different machines.
 
+In args.list, there are 4 available arguments for the ParDim to initialize
+the pipeline. Variables have to be specified after the label: ##[ParDim.sh]##
+
+Note: options and different combinations are provided below in the subsection
+*Possible combinations of providing arguments*
+   
+1. dataPath - path to analyzed data or resulting path for download stage
+   (later about that). The path is used to construct a list of analysed
+   directories.
+2. resPath - path to results of the whole pipeline.
+   By default every stage creates its own directory corresponding
+   to a stage name. But no default value for resPath.
+3. jobsDir - temporary directory for all files generated by ParDim.
+   By default the temporary unique directory dagTestXXXX is created.
+4. selectJobsListPath - initial list of directories for the analysis.
+   Can be empty.
+
+*Possible combinations of providing arguments*
+1. If there are tasks except the Download:
+   [First task = multiTask]
+   - selectJobsListPath = empty & dataPath = empty => Err
+   - selectJobsListPath = empty & dataPath != empty =>
+     selectJobsListPath is filled by dirs from dataPath
+   [First task = singleTask]
+   - selectJobsListPath = empty => create one (there is no need for that)
+   [First task = singleTask/multiTask]
+   - selectJobsListPath != empty => check that all dirs exist and no duplicates
+     in basenames (basenames are used for output => avoid overwriting of files)
+2. If there is Download task or dataPath is used as relPath for any stage
+   - dataPath = empty or impossible to write => Err
+   - dataPath = resPath for Download
+3. General case
+   - resPath = empty & dataPath = empty => Err
+   - resPath = empty & dataPath = empty => resPath=dirname(dataPath)
+   - jobsDir = empty => created temporary with unique name
+
+[Script designing for ParDim]
+
+Depending on a mapping value of a stage different arguments
+are passed to a DagMaker (but almost the same). Thus, while designing your
+scripts (DagMaker for stages), you have to write it in a way to accept these
+arguments in the same order. In following subsections details for specific
+stages are provided.
+
+*Single Mapping scripts*
+
+Single mapping scripts are designed to construct a DAG file based on the
+specific argument.  Usually, it is some sort of prescritps before
+multimapping script.
+
+Examples are:
+    1) list of links, which has to be downloaded. Then the DAG file consists of
+       independent jobs, where every job download the link.
+    2) text file, based on which different directories has to be created. Then
+       the DAG file consists of independent jobs, where every job creates
+       the directory.
+    3) the analysis of just single directory, to create an input for
+       multi-mapping script. Then the DAG file consists of jobs (might be dependent)
+       which creates an input for a  next stage.
+
+Following arguments are provided for a single mapping DagMaker script by ParDim:
+  1. argsFile - argument file which is used by DagMaker to pass all arguments.
+     This is the file which you specify as a value in args in a stage description.
+     So, if nothing is specified, the main file with arguments is used.
+  2. dagFile - the name of the DAG file which is submit in a second step.
+  3. jobsDir - working directory where DagMaker saves all necessary files
+     for DAG submission.
+  4. resPath - path where results are saved.
+  
+     The suggested code (to create a DAG description file) to save results
+     in the "$resPath":
+     conFile="$jobsDir/Name.condor"
+     jobId="$uniqJobId" #can be an iterator to count jobs
+     
+     printf "JOB  $jobId $conFile\n" >> "$dagFile"
+     printf "VARS $jobId transOut=\"$jobId.tar.gz\"\n" >> "$dagFile"
+     printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
+     >> "$dagFile"
+
+     Note: the structure of a condor file and executed one is given later.
+     
+  5. selectJobsListInfo - file with all information about results of a previous
+     stage. If previous stage exist.
+
+     Note: Structure of file is provided later
+     
+
+*Multi-mapping scripts*
+
+Multi-mapping scripts are designed to construct a DAG file based on information
+about the specific directory, so that it is executed for every of analyzed
+directories independently.
+
+Examples are:
+    1) alignment of fastq files for an experiment
+    2) peak calling for an experiment
+    3) trimming for an experiment
+
+Following arguments are provided for a multi mapping DagMaker script by ParDim:
+  1. argsFile - argument file which is used by dagMaker to pass all arguments.
+     This is the file which you specify as a value in args in a stage description.
+     So, if nothing is specified, the main file with arguments is used.
+  2. dagFile - the name of the DAG file which is submit in a second step.
+  3. jobsDir - working directory where DagMaker saves all necessary files
+     for DAG submission.
+  4. resPath - path where results are saved. Piece of code how to do that is
+     provided below.
+     
+     The suggested code (to create a DAG description file) to save results
+     in the "$resPath":
+     conFile="$jobsDir/Name.condor"
+     jobId="$uniqJobId" #can be an an iterator to count jobs
+     # $transOut - variable described below
+     
+     printf "JOB  $jobId $conFile\n" >> "$dagFile"
+     printf "VARS $jobId transOut=\"$transOut.jobId.tar.gz\"\n" >> "$dagFile"
+     printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
+     >> "$dagFile"
+
+     Note: the structure of a condor file and executed one is given later
+     
+  5. inpDataInfo - file with all information about results of a previous
+     stage for the same directory (specific analyzed directory and not for
+     all of them as in single script)
+
+     Note: Structure of file is provided later.
+  6. resDir - directory to save results and has to be tared with following arg:
+  7. transOut - an unique name of a tarfile to tar resDir
+
+  Note: transOut is necessary to provide to create a unique tar file
+  corresponding to an analysed directory, since all of resutls are collected in
+  one directory and untared later by ParDim, when the stage is done.
+
+
+*Structure of a condor file*
+
+In both cases of maps we specify transOut and transMap as variables for
+specific job. So, conFile description is:
+
+transfer_output = $(transOut)
+transfer_output_remaps = "$(transMap)"
+arguments = "'arg1', 'arg2', '\$(transOut)', ..."
+
+
+*Structure of an execution file*
+
+So, in an execution file, the results have to be tared in the name corresponding
+to a value in transOut variable. That is, in an execution file you have to have
+a variable like outTar=$3, where $3 - corresponds to a position of transOut in 
+arguments in condor file (see above). And then do:
+tar -czf "$dirWithAllresults" "$jobId.tar.gz"
+
+
+*Structure of the selectJobsListInfo and inpDataInfo*
+
+The difference between selectJobsListInfo and InpDataInfo is that
+first file is a combination of a second file but for all directories in
+the resulting directory of the previous stage. While the InpDataInfo contains
+information form the previous stage  just about analysing directory.
+
+The InpDataInfo structure is:
+/path/to/directory/or/subdirectory:
+fileName1        size in bytes
+....
+fileNameN        size in bytes
+
+Note: the space above is '\t' - tabular.
+
+
+
+[ParDim built-in boost downloading stage]
+
+To download files to fill the dataPath ParDim.sh provides a stage
+##[ Download ]##. The name of the stage is reserved for built-in ParDim.sh script
+(boostDownload.sh),
+which has to be the first stage (or single) in a pipeline. If you would like to
+use your own downloading script, you have to use another name of the stage,
+except ##[ Download ]##.
+
+The Download stage of ParDim.sh downloads uniques files from the table
+and distribute them in right directories, with several options:
+
+  - save files with original names or based on relative name according to
+    pattern: relativeName.columnName.extensionOfRelName
+    e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz
+    
+    Note: names for relativeName column is not changed
+  - combine several files, splited by tabDelimJoin, then
+    final name is based on the name of 1st file. If it is relative name,
+    then based on 1st name of relative names, if there are several to join.
+
+Since, the Download stage is written for HTCondor environment, it downloads
+every file on separate machine simultaneously, which boosts downloading process
+in times.
+
+The better description of downloading arguments is provided in Download manual.
 
