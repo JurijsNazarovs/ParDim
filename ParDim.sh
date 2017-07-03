@@ -99,7 +99,11 @@ for i in "${taskPos[@]}"; do
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
       posArgs=(script map transFiles args relResPath)
-      script=""
+      if [[ "$i" = "$downloadTaskName" ]]; then
+          script="$scriptsPath/boostDownload.sh"
+      else
+        script=""
+      fi
       map=multi #if runs for every directory
       transFiles=""
       args="" #file with arguments (just one)
@@ -214,7 +218,7 @@ posArgs=("dataPath" # path for data, which is not neccesary resPath
                               #then all from dataPath
         )
 
-jobsDir=$(mktemp -duq dagTestXXXX) #default value
+jobsDir=$(mktemp -duq dagTestXXXX)
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
          > /dev/null
@@ -246,7 +250,7 @@ if [[ -n "$isDownTask" ]]; then
       ErrMsg "The $downloadTaskName has to be first task,
               but it is $((isDownTask + 1)).
               If you are trying to use your own downloading script,
-              please change the name."
+              please change the name of the stage."
     fi
 else
   isDownTask=false
@@ -401,6 +405,10 @@ conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 # Transfer files
 for i in "${!task[@]}"; do
   strTmp="$funcListPath, ${taskScript[i]}"  #scripts used in mapping scripts
+  if [[ "$i" = "$downloadTaskName" ]]; then
+     strTmp="$strTmp, $scriptsPath/makeCon.sh"
+  fi
+
   conMapTransFiles["$i"]="$strTmp, ${taskArgsFile[i]}"
 
   if [[ -n "${taskTransFiles[$i]}" ]]; then
