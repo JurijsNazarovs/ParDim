@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# boostDownload.sh - download uniques files adn distribute them in right
+# boostDownload.sh - download uniques files and distribute them in right
 # directories, with several options:
 #     - save files with original names or based on relative name according to
 #       pattern: relativeName.columnName.extensionOfRelName
