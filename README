@@ -1,9 +1,39 @@
-[Common description]
+[Introduction]
 
 ParDim - software, which provides the framework (front end) for a simple
 procedure of creating pipeline by integrating different stages and paralleling
 the execution for a number of analyzed directories, based on HTCondor
 environment.
+
+In other words, if you have a script to run on condor for one directory,
+which corresponds to a specific data set or experiment,
+ParDim implements runs for multiple directories, and provides tools to
+manage a workflow of scripts, download and prepare data for runs, and great
+reporting function to get status of running jobs.
+
+The construction of a pipeline is completed in an intuitive description of
+stages in a text file, with ability to include/exclude a specific stage by
+changing a value of just one argument - execute. Such structure allows to
+keep all information in one text file and controll the workflow without
+deleting chunks of parameters. As an example, pipeline with stage1 -> stage3
+looks like:
+
+------------------------
+##[ stage1 ]##
+execute    true
+...
+##[ stage2 ]##
+execute    false
+...
+##[ stage3 ]##
+execute    true
+...
+------------------------
+
+ParDim provides all necessary information about a previous stage
+of pipeline to a next stage using text files. It controls that results of a
+stage are transferred in a right directory in an organized way (according to a
+stage name).
 
 The flow of ParDim is dedicated to 2 steps:
     - construct the DAG file (let call a script to construct DAG file as DagMaker)
@@ -11,15 +41,11 @@ The flow of ParDim is dedicated to 2 steps:
 Thus, to design a stage for ParDim, user has to provide a script - DagMaker,
 which creates a DAG condor file, and ParDim handles its execution. 
 
-The construction of a pipeline is completed in an intuitive description of
-stages in a text file, with ability to include/exclude a specific stage by
-changing the value of execute argument.
-
 Currently ParDim supports two types of executed scripts:
-  - multi-mapping scripts - same script has to be executed independently for each
+  - multi-mapping scripts - same script is executed independently for each
     directory in a pool of directories.
     Example: processing data for every experiment, where an experiment corresponds
-    to a directory.
+    to a directory, like peak calling, alignment, and other.
   - single-mapping script - script is executed for specific arguments. Usually,
     Single-mapping script is a preprocess script for multi-mapping script.
     Example: 1) list of links, which has to be downloaded.
@@ -27,12 +53,7 @@ Currently ParDim supports two types of executed scripts:
              3) the analysis of just single directory, to create an input for
                 multi-mapping script
 
-ParDim provides all necessary information about a previous stage
-of pipeline to a next stage using text files. It manages that results of a
-stage are transferred in a right directory in an organized way
-(according to a stage name).
-
-Since the ParDim is dedicated to manage the pipeline, the results for a current
+Since the ParDim is dedicated to manage a pipeline, results for a current
 stage are the input for the following stage. More about that in section
 "Pipeline construction" - additional input.
 
