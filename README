@@ -1,24 +1,27 @@
+--------------------------------------------------------------------------------
 [Introduction]
-
+--------------------------------------------------------------------------------
 ParDim - software, which provides the framework (front end) for a simple
 procedure of creating pipeline by integrating different stages and paralleling
 the execution for a number of analyzed directories, based on HTCondor
 environment.
 
 In other words, if you have a script to run on condor for one directory,
-which corresponds to a specific data set or experiment,
-ParDim implements runs for multiple directories, and provides tools to
-manage a workflow of scripts, download and prepare data for runs, and great
-reporting function to get status of running jobs.
+which corresponds to a specific data set or experiment, ParDim implements runs
+for multiple directories.
+Note: more about script is in section [Script designing for ParDim].
 
-The construction of a pipeline is completed in an intuitive description of
+ParDim provides tools to manage a workflow of scripts, download and prepare data
+for runs, and a great reporting function to get status of running jobs.
+
+Сonstruction of a pipeline is completed in an intuitive description of
 stages in a text file, with ability to include/exclude a specific stage by
 changing a value of just one argument - execute. Such structure allows to
 keep all information in one text file and controll the workflow without
 deleting chunks of parameters. As an example, pipeline with stage1 -> stage3
 looks like:
 
-------------------------
+--------------------
 ##[ stage1 ]##
 execute    true
 ...
@@ -28,43 +31,109 @@ execute    false
 ##[ stage3 ]##
 execute    true
 ...
-------------------------
+--------------------
 
-ParDim provides all necessary information about a previous stage
-of pipeline to a next stage using text files. It controls that results of a
-stage are transferred in a right directory in an organized way (according to a
-stage name).
+ParDim provides all necessary information about a previous stage of pipeline
+to a next stage using text files. It controls that results of astage are
+transferred in a right directory in an organized way (according to a stage name).
 
-The flow of ParDim is dedicated to 2 steps:
-    - construct the DAG file (let call a script to construct DAG file as DagMaker)
-    - execute the constructed DAG file
-Thus, to design a stage for ParDim, user has to provide a script - DagMaker,
-which creates a DAG condor file, and ParDim handles its execution. 
+--------------------------------------------------------------------------------
+[ParDim installation and execution]
+--------------------------------------------------------------------------------
+----------------------------------------
+*INSTALLATION*
+----------------------------------------
+1. To install the ParDim go in the directory where you would like to install
+   software:
+   $ softDir="/path/to/softwareDirectory"
+   $ cd "$softDir"
+2. Download the current version from the GitHub repository:
+   $ git clone git@github.com:JurijsNazarovs/ParDim.git
+3. Add following lines in your .bash_profile file (should be in your $HOME path):
+   softDir="/path/to/softwareDirectory"
+   export PATH="$softDir/ParDim/:$PATH"
 
-Currently ParDim supports two types of executed scripts:
-  - multi-mapping scripts - same script is executed independently for each
-    directory in a pool of directories.
-    Example: processing data for every experiment, where an experiment corresponds
-    to a directory, like peak calling, alignment, and other.
-  - single-mapping script - script is executed for specific arguments. Usually,
-    Single-mapping script is a preprocess script for multi-mapping script.
-    Example: 1) list of links, which has to be downloaded.
-             2) text file, based on which different directories have to be created
-             3) the analysis of just single directory, to create an input for
-                multi-mapping script
+Now you have an access to 3 function from any directory:
+1. ParDim.sh - ParDim framework
+2. MakeArgsFile.sh - creates a template for an argument file
+3. MakeReport.sh - provides an information about pipeline running status
 
-Since the ParDim is dedicated to manage a pipeline, results for a current
-stage are the input for the following stage. More about that in section
-"Pipeline construction" - additional input.
+----------------------------------------
+*EXECUTION*
+----------------------------------------
+In this subsection we assumne that you did actions described in the subsection
+*INSTALLATION* above
+--------------------
+ParDim.sh
+--------------------
+ParDim.sh is a bash script and executed as:
+ParDim.sh "argsFile" "isSubmit"
 
+1. argsFile - path to a text file with constructed pipeline and relative
+   arguments.
 
+   Note: default value is args.list in a root directory of ParDim.sh
+2. isSubmit  - boolean variable with values true/false.
+   If value is false, then everything is prepared to run the pipeline, but
+   does not run, to test the structure to make sure everything is ok.
+
+   Note: default value is true, which means run the whole pipeline.
+
+--------------------
+MakeArgsFile.sh
+--------------------
+MakeArgsFile.sh is a bash script and executed as:
+MakeArgsFile.sh "argsFile" "isAppend" "stage1" ... "stageN"
+
+1. argsFile - path to a text file with constructed pipeline and relative
+   arguments.
+
+   Note: default value is args.list in a root directory of ParDim.sh
+2. isAppend - boolean variable with values true/false.
+   true  - append to existing argsFile without creating a head for ParDim.sh
+   false - rewrite the whole file
+3-. different names of stages in order of required execution
+
+   Note: default value is just ParDim stage, to create necessary arguments
+   to run ParDim. More details in section [ParDim Stage].
+
+Note: MakeArgsFile.sh creates a template for every stage, which has to be
+filled by user.
+Note: for the stage with name Download, ParDim creates different set of
+arguments, since it is a built in function.
+
+--------------------
+MakeReport.sh
+--------------------
+MakeReport.sh is a bash script and executed as:
+MakeReport.sh "stageName" "jobsDir" "reportDir" "holdReason" "delim"
+
+1. stageName - name of the stage of which to get summary
+2. jobsDir - the working directory for the task, specified in ParDim
+3. reportDir - directory to create all report files. Default is report
+4. holdReason - reason for holding jobs, e.g. "" - all hold jobs, "72 hrs"
+5. delim - delimeter to use for output files
+
+The output of MakeReport.sh is 8 files:
+1. *.queuedJobs.list - queued jobs
+2. *.compJobs.list - completed jobs
+3. *.notCompJobs.list - currently not completed jobs
+4. *.holJobsReason.list - holding lines given reason $holdReason
+5. *.holdJobs.list - jobs on hold given reason $holdReason
+6. *.summaryJobs.list - summary info about directories
+7. *.notCompDirs.list - path to not completed directories
+8. *.compDirs.list - path to completed directories
+
+--------------------------------------------------------------------------------
 [Pipeline construction]
+--------------------------------------------------------------------------------
+To construct a pipeline - combination of stages, the argument file (text file)
+is filled with specific syntax for a stage description.
 
-To construct a pipeline, the argument file (text file) is filled with specific
-syntax.
-
-Necessary input.
-There are 3 arguments which are nessecary to describe a pipeline stage
+----------------------------------------
+*REQUIRED INPUT*
+----------------------------------------
+There are 3 required arguments to describe a pipeline stage
   1. stageName - provided in a pattern (*S* - any number of spaces):
      *S*##[*S*stageName*S*]##*S*
      
@@ -72,15 +141,19 @@ There are 3 arguments which are nessecary to describe a pipeline stage
   2. execute - boolean variable with values true/false. Indicates, if a stage
      should be executed or not. If the stage is not executed,
      it is just skipped. So, there is no need to delete it from the argument file.
+
+     Note: if value is not true, task is not executed and warning appears.
   3. script - path to the script, which is executed to construct a DAG.
   
      Note: if not full path is provided, then path is assumed to be relative to a
-     directory, where ParDim is executed. 
-
-Additional input.
+     directory, where ParDim is executed.
+     
+----------------------------------------
+*ADDITIONAL INPUT*
+----------------------------------------
   1. map - argument with 2 values (now): multi/single. Tells what is the type
      of a stage. (more examples later)
-  2. args - path to argument file, which is used for script.
+  2. args - path to argument file, which is used for a script.
      If the argument is empty, then the current file with description of the
      pipeline is used for a script.
      That means, that in the description of the stage you can provide
@@ -99,76 +172,34 @@ Additional input.
      Note: Files corresponding to arguments "args" and "script" are transferred
      automatically.
   4. relResPath - path for results relative to the part of the pipeline or
-     dataPath. Possible values are: previous/next stageName and dataPath.
+     dataPath.
+     Possible values are: previous/next stageName and dataPath.
      That is, results for current stage are saved in results directory of a
      stage specified in relResPath.
      Example: There is data in dataPath, and we need to create new additional
      data in same directory. So, that next stage can read original + new data
      from dataPath (or any stages). Then relResPath is dataPath.
 
+     Note: if nothing is provided, then relResPath is resPath/stageName
+
 Note: ParDim.sh provides an error if something is wrong with scripts, args,
 transFiles, or relResPath.
 
-The example of one stage with all possible arguments is provided below:
---------------------------------------
+----------------------------------------
+*EXAMPLE* with all possible arguments
+----------------------------------------
 ##[ stageName ]##  
 execute                 true/false
 map                     single/multi
 script                  /path/to/script
 args                    /path/to/argument/file/for/script
 transFiles              /path/to/different/files/to/transfer/using/,
---------------------------------------
-
-The pipeline is constructed in an order specified in the argument file. Two
-examples are provided below with the same structure of a arguments file.
-
-Example 1: stage1 -> stage2 -> stage3
-
-##[ stage1  ]##
-execute    true
-...
-##[stage2   ]##
-execute    true
-...
-##[ stage3 ]##
-execute    true
-...
-
-Example 2: stage1 -> stage3
-
-##[ stage1  ]##
-execute    true
-...
-##[stage2   ]##
-execute    false
-...
-##[ stage3 ]##
-execute    true
-...
+relResPath              
 
 
-[Main arguments for the ParDim]
-
-ParDim.sh is a bash script and executed as:
-
-1. bash /path/to/ParDim.sh "args.list" "isSubmit"
-or
-2. /path/to/ParDim.sh "args.list" "isSubmit"
-or
-3. you can add path in your .bash_profile file as following:
-export PATH="/path/to/ParDim/":$PATH and execute ParDim.sh as just
-ParDim.sh "args.list" "isSubmit"
-
-
-1. args.list - list with arguments and constructed pipeline.
-   The default value is args.list in root directory of ParDim.sh
-2. isSubmit  - boolean variable with values true/false.
-   If value is false, then everything is prepared to run the pipeline, but
-   does not run. It is created to test the structure to make sure everything
-   is ok.
-   Default is true, which means run the whole pipeline.
-
-
+--------------------------------------------------------------------------------
+[ParDim Stage]
+--------------------------------------------------------------------------------
 In args.list, there are 4 available arguments for the ParDim to initialize
 the pipeline. Variables have to be specified after the label: ##[ParDim.sh]##
 
@@ -205,7 +236,20 @@ Note: options and different combinations are provided below in the subsection
    - resPath = empty & dataPath = empty => resPath=dirname(dataPath)
    - jobsDir = empty => created temporary with unique name
 
+
+NOTE: write about function which creates arguments
+
+
+
+
 [Script designing for ParDim]
+
+The flow of ParDim is dedicated to 2 steps:
+    - construct the DAG file (let call a script to construct DAG file as DagMaker)
+    - execute the constructed DAG file
+Thus, to design a stage for ParDim, user has to provide a script - DagMaker,
+which creates a DAG condor file, and ParDim handles its execution. 
+
 
 Depending on a mapping value of a stage different arguments
 are passed to a DagMaker (but almost the same). Thus, while designing your
@@ -213,21 +257,21 @@ scripts (DagMaker for stages), you have to write it in a way to accept these
 arguments in the same order. In following subsections details for specific
 stages are provided.
 
-*Single Mapping scripts*
+*SINGLE-MAPPING SCRIPTS*
 
 Single mapping scripts are designed to construct a DAG file based on the
 specific argument.  Usually, it is some sort of prescritps before
 multimapping script.
 
 Examples are:
-    1) list of links, which has to be downloaded. Then the DAG file consists of
-       independent jobs, where every job download the link.
-    2) text file, based on which different directories has to be created. Then
-       the DAG file consists of independent jobs, where every job creates
-       the directory.
-    3) the analysis of just single directory, to create an input for
-       multi-mapping script. Then the DAG file consists of jobs (might be dependent)
-       which creates an input for a  next stage.
+  1) list of links, which has to be downloaded. Then the DAG file consists of
+     independent jobs, where every job download the link.
+  2) text file, based on which different directories has to be created. Then
+     the DAG file consists of independent jobs, where every job creates
+     the directory.
+  3) the analysis of just single directory, to create an input for
+     multi-mapping script. Then the DAG file consists of jobs (might be dependent)
+     which creates an input for a  next stage.
 
 Following arguments are provided for a single mapping DagMaker script by ParDim:
   1. argsFile - argument file which is used by DagMaker to pass all arguments.
@@ -256,16 +300,16 @@ Following arguments are provided for a single mapping DagMaker script by ParDim:
      Note: Structure of file is provided later
      
 
-*Multi-mapping scripts*
+*MULTI-MAPPING SCRIPTS*
 
 Multi-mapping scripts are designed to construct a DAG file based on information
 about the specific directory, so that it is executed for every of analyzed
 directories independently.
 
 Examples are:
-    1) alignment of fastq files for an experiment
-    2) peak calling for an experiment
-    3) trimming for an experiment
+  1) alignment of fastq files for an experiment
+  2) peak calling for an experiment
+  3) trimming for an experiment
 
 Following arguments are provided for a multi mapping DagMaker script by ParDim:
   1. argsFile - argument file which is used by dagMaker to pass all arguments.
@@ -303,7 +347,7 @@ Following arguments are provided for a multi mapping DagMaker script by ParDim:
   one directory and untared later by ParDim, when the stage is done.
 
 
-*Structure of a condor file*
+*STRUCTURE OF A CONDOR FILE*
 
 In both cases of maps we specify transOut and transMap as variables for
 specific job. So, conFile description is:
@@ -313,7 +357,7 @@ transfer_output_remaps = "$(transMap)"
 arguments = "'arg1', 'arg2', '\$(transOut)', ..."
 
 
-*Structure of an execution file*
+*STRUCTURE OF AN EXECUTION FILE*
 
 So, in an execution file, the results have to be tared in the name corresponding
 to a value in transOut variable. That is, in an execution file you have to have
@@ -322,7 +366,7 @@ arguments in condor file (see above). And then do:
 tar -czf "$dirWithAllresults" "$jobId.tar.gz"
 
 
-*Structure of the selectJobsListInfo and inpDataInfo*
+*STRUCTURE OF selectJobsListInfo AND inpDataInfo*
 
 The difference between selectJobsListInfo and InpDataInfo is that
 first file is a combination of a second file but for all directories in
