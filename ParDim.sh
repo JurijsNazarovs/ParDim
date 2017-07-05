@@ -36,10 +36,13 @@ EchoLineBold
 echo "[Start] $curScrName"
 
 EchoLineSh
-printf "%-35s %s\n"\
+lenStr=${#curScrName}
+lenStr=$((25 + lenStr))
+echo "$lenStr"
+printf "%-${lenStr}s %s\n"\
         "The location of $curScrName:"\
         "$homePath"
-printf "%-35s %s\n"\
+printf "%-${lenStr}s %s\n"\
         "The $curScrName is executed from:"\
         "$PWD"
 EchoLineSh

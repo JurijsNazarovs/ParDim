@@ -22,7 +22,18 @@ source "$scriptsPath"/funcListParDim.sh
 curScrName=${0##*/} #delete all before last backSlash
 
 EchoLineBold
-echo "[Start]   $curScrName"
+echo "[Start] $curScrName"
+
+EchoLineSh
+lenStr=${#curScrName}
+lenStr=$((25 + lenStr))
+printf "%-${lenStr}s %s\n"\
+        "The location of $curScrName:"\
+        "$homePath"
+printf "%-${lenStr}s %s\n"\
+        "The $curScrName is executed from:"\
+        "$PWD"
+EchoLineSh
 
 ## Input
 task=${1:-"Download"} #task to get summary of

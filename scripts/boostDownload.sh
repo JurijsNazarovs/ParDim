@@ -26,6 +26,20 @@ source "$homePath"/funcListParDim.sh
 
 curScrName=${0##*/}
 
+EchoLineBold
+echo "[Start] $curScrName"
+
+EchoLineSh
+lenStr=${#curScrName}
+lenStr=$((25 + lenStr))
+echo "$lenStr"
+printf "%-${lenStr}s %s\n"\
+        "The location of $curScrName:"\
+        "$homePath"
+printf "%-${lenStr}s %s\n"\
+        "The $curScrName is executed from:"\
+        "$PWD"
+EchoLineSh
 
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
@@ -57,11 +71,6 @@ nDotsExt=1              # # of dots before  extension of download files starts
 
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
-fi
-
-if [[ "$isCondor" = false ]]; then
-    EchoLine
-    echo "[Start] $curScrName"
 fi
 
 ReadArgs "$argsFile" 1 "Download"  "${#posArgs[@]}" "${posArgs[@]}" > /dev/null
@@ -363,9 +372,7 @@ fi
 ## End
 rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3" #"$tabOut"
 
-if [[ "$isCondor" = false ]]; then
-    echo "[End]  $curScrName"
-    EchoLine
-fi
+echo "[End]  $curScrName"
+EchoLineBol
 
 exit 0
