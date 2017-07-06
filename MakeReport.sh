@@ -54,7 +54,7 @@ delim=${5:-,} #delimeter to use for output files
 jobsDir="$(readlink -m "$jobsDir")"
 reportDir="$(readlink -m "$reportDir")"
 
-mainPipelineFile="$jobsDir/pipelineMain.dag.dagman.out"
+mainPipelineFile="$jobsDir/ParDim.main.dag.dagman.out"
 queuJobsFile="$reportDir/$task.queuedJobs.list" #qued but not necessary all
 compJobsFile="$reportDir/$task.compJobs.list"
 notCompJobsFile="$reportDir/$task.notCompJobs.list"
