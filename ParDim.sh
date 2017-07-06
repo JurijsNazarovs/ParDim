@@ -103,10 +103,11 @@ for i in "${taskPos[@]}"; do
       posArgs=(script map transFiles args relResPath)
       if [[ "$i" = "$downloadTaskName" ]]; then
           script="$scriptsPath/boostDownload.sh"
+          map=single
       else
         script=""
+        map=multi #if runs for every directory
       fi
-      map=multi #if runs for every directory
       transFiles=""
       args="" #file with arguments (just one)
       relResPath="" #path for results relative to the part of pipeline
