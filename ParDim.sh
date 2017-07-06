@@ -176,7 +176,7 @@ if [[ ${#task[@]} -eq 0 ]]; then
 fi
 
 # Checking relResPath
-isDataPathInRelResPath=false #if relResPath = dataPath
+isDataPathInRelResPath=false #if relResPath = dataPath; to make a future check
 for i in "${taskRelResPath[@]}"; do
   if [[ -n $(RmSp "$i") ]]; then
       if [[ "$i" = dataPath ]]; then
@@ -221,7 +221,7 @@ posArgs=("dataPath" # path for data, which is not neccesary resPath
                               #then all from dataPath
         )
 
-jobsDir=$(mktemp -duq dagTestXXXX)
+jobsDir=$(mktemp -duq dagTmpXXXX)
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
          > /dev/null
@@ -326,9 +326,20 @@ else
 fi
 
 
-## Define corresponding DAG files
-for i in "${task[@]}"; do
-  taskDag=("${taskDag[@]}" "$i.dag") #resulting .dag file. Name NOT path
+## Define corresponding DAG files and task path for results
+for i in "${!task[@]}"; do
+  taskDag[$i]="${task[$i]}.dag" #resulting .dag file. Name NOT path
+
+  if [[ "${task[$i]}" = "$downloadTaskName" ||\
+            "${taskRelResPath[$i]}" = dataPath ]]; then
+      taskResPath[$i]="$dataPath"
+  else
+    if [[ -z $(RmSp "${taskRelResPath[$i]}") ]]; then
+        taskResPath[$i]="$resPath/${task[i]}"
+    else
+      taskResPath[$i]="$resPath/${taskRelResPath[$i]}"
+    fi
+  fi
 done
 
 
@@ -338,7 +349,7 @@ PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
 maxLenStr=0
 nZeros=${#task[@]} #number of zeros to make an order
 nZeros=${#nZeros}
-for i in "${task[@]}" "Files to Transfer";  do
+for i in "${task[@]}" "Files to Transfer" "Results";  do
   maxLenStr=$(Max $maxLenStr ${#i})
 done
 
@@ -369,6 +380,11 @@ for i in "${!task[@]}"; do
       strTmp=() #delete values for future use
   fi
 
+  # Results
+  printf "%0${nZeros}s  %-$((maxLenStr + nZeros))s %s\n"\
+         ""\
+        "Results"\
+        "${taskResPath[$i]}"
 done
 EchoLineBoldSh
 
@@ -391,7 +407,6 @@ conMapArgs=("\$(taskScript)" #variable - script name executed by map.script
             "\$(selectJobsListInfo)" #single and multi map
             "\$(selectJobsListPath)" #multi map
            )
-
 conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 
 # Transfer files
@@ -434,9 +449,6 @@ fi
 ## DAG description of a pipeline
 pipeStructFile="$jobsDir/ParDim.main.dag"
 
-EchoLineBoldSh
-echo "[Start] Creating $pipeStructFile"
-
 # Print the head
 PrintfLine > "$pipeStructFile"
 printf "CONFIG $scriptsPath/dag.config\n" >> "$pipeStructFile"
@@ -447,6 +459,7 @@ isFT="true" #is the First Task
 lastTask="" #last executed task for PARENT CHILD dependency
 for i in "${!task[@]}"; do
   jobId="${task[$i]}"
+  
   # Prescripts
   if [[ "${taskMap[$i]}" != single && -z $(RmSp "$lastTask") ]]; then
       # Create selectJobsListInfo
@@ -477,17 +490,17 @@ for i in "${!task[@]}"; do
       fi
   fi
 
+  # Transfered files
   if [[ "$jobId" != "$downloadTaskName" ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListInfo"
   fi
-  
   if [[ "${taskMap[$i]}" != single ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
   fi
 
   # Print the condor job
   # conMap returns files back in jobsDir, using postscript. 
-  # Meanwile i use some tmp directory inside of the exeMap.
+  # Meanwile I use some tmp directory inside of the exeMap.
   jobsDirTmp="$jobsDir/${taskMap[$i]}Map/${taskDag[$i]%.*}"
   mkdir -p "$jobsDirTmp"
   printf "JOB $jobId $conMap DIR $jobsDirTmp\n\n" >> "$pipeStructFile"
@@ -501,7 +514,7 @@ for i in "${!task[@]}"; do
   strTmp="${taskArgsFile[$i]}"; strTmp="${strTmp##*/}" #from homepath in condor 
   printf "VARS $jobId argsFile=\"$strTmp\"\n"\
          >> "$pipeStructFile" #need to be transfered
-  #$jobsDirTmp/
+  
   printf "VARS $jobId dagFile=\"${taskDag[$i]}\"\n"\
          >> "$pipeStructFile" #just a name
   printf "VARS $jobId conMapTransFiles=\"${conMapTransFiles[$i]}\"\n"\
@@ -519,16 +532,7 @@ for i in "${!task[@]}"; do
   fi
 
   # Path to return all results from jobs
-  if [[ "$jobId" = "$downloadTaskName" ||\
-            "${taskRelResPath[$i]}" = dataPath ]]; then
-      resPathTmp="$dataPath"
-  else
-    if [[ -z $(RmSp "${taskRelResPath[$i]}") ]]; then
-        resPathTmp="$resPath/$jobId"
-    else
-      resPathTmp="$resPath/${taskRelResPath[$i]}"
-    fi
-  fi
+  resPathTmp="${taskResPath[$i]}" #need to save, used in a next stage as input
   mkdir -p "$resPathTmp"
   if [[ $? -ne 0 ]]; then
       ErrMsg "Impossible to create $resPathTmp"
@@ -576,9 +580,6 @@ else
   echo "$pipeStructFile is ready for a test"
   EchoLineSh
 fi
-
-echo "[End] Creating $pipeStructFile"
-EchoLineBoldSh
 
 ## End
 echo "[End]  $curScrName"
