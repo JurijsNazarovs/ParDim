@@ -38,7 +38,6 @@ echo "[Start] $curScrName"
 EchoLineSh
 lenStr=${#curScrName}
 lenStr=$((25 + lenStr))
-echo "$lenStr"
 printf "%-${lenStr}s %s\n"\
         "The location of $curScrName:"\
         "$homePath"
@@ -245,39 +244,20 @@ fi
 
 
 ## Initial checking
-isDownTask="$(ArrayGetInd 1 "$downloadTaskName" "${task[@]}")"
-if [[ -n "$isDownTask" ]]; then
-    if [[ "$isDownTask" -eq 0 ]]; then
-        isDownTask=true
-    else
-      ErrMsg "The $downloadTaskName has to be first task,
-              but it is $((isDownTask + 1)).
-              If you are trying to use your own downloading script,
-              please change the name of the stage."
-    fi
-else
-  isDownTask=false
-fi
-
-# Arguments of main (THIS) script (dataPath and selectJobsListPath)
-if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
-    # Case when we have a task except downloading
-    
+# Chk/create selectJobsListPath and selectJobsListInfo
+if [[ "${taskMap[0]}" != single ]]; then  
     if [[ -z $(RmSp "$selectJobsListPath") ]]; then
-        if [[ -z $(RmSp "$dataPath") && "${taskMap[0]}" = multi ]]; then
+        if [[ -z $(RmSp "$dataPath") ]]; then
             ErrMsg "Please provide dataPath in $curScrName
                     to define directories for an analysis or
                     selectJobsListPath - list of analysed directories."
         fi
-        # If first and single task has single map, then no need in dataPath
-        # or selectJobsList. Maybe need just some argFile.
+   
         selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
-        if [[ "$isDownTask" = false && "${taskMap[0]}" = multi ]]; then 
-            ChkExist d "$dataPath" "dataPath: $dataPath"
-            #ls -d "$dataPath/"*/ > "$selectJobsListPath"
-            find "$dataPath/" -mindepth 1 -maxdepth 1 -type d \
-                 > "$selectJobsListPath"
-        fi
+        ChkExist d "$dataPath" "dataPath: $dataPath"
+        #ls -d "$dataPath/"*/ > "$selectJobsListPath"
+        find "$dataPath/" -mindepth 1 -maxdepth 1 -type d \
+             > "$selectJobsListPath"
     else
       ChkExist f "$selectJobsListPath"\
                "List of selected directories: $selectJobsListPath"
@@ -287,7 +267,7 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
       done < "$selectJobsListPath"
       
       # Chk duplicates of dirNames (basenames) in selectJobsListPath
-      # to avoid overwriting
+      # to avoid overwriting on executed server
       readarray -t strTmp <<< "$(ArrayGetDupls "${strTmp[@]}")"
       if [[ -n "${strTmp[@]}" ]]; then
           ErrMsg "In selectJobsListPath: $selectJobsListPath
@@ -298,8 +278,16 @@ if [[ (${#task[@]} -gt 1) || "$isDownTask" = false ]]; then
     fi
     selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.XXXX)"
 fi
-# Thus, if we have just download, then
-# selectJobsListPath and selectJobsListInfo are empty
+# Thus, if first task is single-mapping task, then
+# selectJobsListPath and selectJobsListInfo are empty on this stage, but
+# they are filled later, if there are more tasks.
+
+isDownTask="$(ArrayGetInd 1 "$downloadTaskName" "${task[@]}")"
+if [[ -n "$isDownTask" ]]; then
+    isDownTask=true
+else
+  isDownTask=false
+fi
 
 if [[ "$isDownTask" = true || "$isDataPathInRelResPath" = true ]]; then
     if [[ -z $(RmSp "$dataPath") ]]; then
@@ -408,7 +396,7 @@ conMapArgs=$(JoinToStr "\' \'" "${conMapArgs[@]}")
 # Transfer files
 for i in "${!task[@]}"; do
   strTmp="$funcListPath, ${taskScript[i]}"  #scripts used in mapping scripts
-  if [[ "$i" = "$downloadTaskName" ]]; then
+  if [[ "${task[$i]}" = "$downloadTaskName" ]]; then
      strTmp="$strTmp, $scriptsPath/makeCon.sh"
   fi
 
@@ -438,12 +426,12 @@ bash "$scriptsPath"/makeCon.sh "$conMap" "$conMapOutDir"\
      "\$(exeMap)" "$conMapArgs" "\$(conMapTransFiles)"\
      "1" "1" "1" "" "" "\$(conName)"
 if [[ "$?" -ne 0 ]]; then
-    exit "$?"
+    ErrMsg "Cannot create a condor file: $conFile" "$?"
 fi
 
 
 ## DAG description of a pipeline
-pipeStructFile="$jobsDir/pipelineMain.dag"
+pipeStructFile="$jobsDir/ParDim.main.dag"
 
 EchoLineBoldSh
 echo "[Start] Creating $pipeStructFile"
@@ -458,37 +446,41 @@ isFT="true" #is the First Task
 lastTask="" #last executed task for PARENT CHILD dependency
 for i in "${!task[@]}"; do
   jobId="${task[$i]}"
-  # Parent Child Dependency and prescripts
-  if [[ "${taskMap[$i]}" = multi && -z $(RmSp "$lastTask") ]]; then
-      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-             "$pipeStructFile" 
+  # Prescripts
+  if [[ "${taskMap[$i]}" != single && -z $(RmSp "$lastTask") ]]; then
+      # Create selectJobsListInfo
+      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh "\
+             >> "$pipeStructFile" 
       printf "FillListOfContent $selectJobsListPath $selectJobsListInfo \n\n"\
              >> "$pipeStructFile"
   fi
-  
-  if [[ -n $(RmSp "$lastTask")  ]]; then
+
+  # Parent-child dependency 
+  if [[ -n $(RmSp "$lastTask") ]]; then
       printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
       PrintfLineSh >> "$pipeStructFile"
-      
-      # Need to create 2 files: file with dirs and file with content of dirs
-      selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
-      selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
-      
-      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-             "$pipeStructFile" 
-      printf "FillListOfDirsAndContent $resPathTmp " >>\
-             "$pipeStructFile"
-      printf "$selectJobsListPath  $selectJobsListInfo \n\n" >>\
-             "$pipeStructFile"
-      # resPathTmp is defined after task is executed. So, we have path for
-      # results of a previous running job.
+
+      if [[ "$jobId" != "$downloadTaskName" ]]; then
+          # Need to create 2 files: file with dirs and file with content of dirs
+          selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
+          selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
+          
+          printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
+                 "$pipeStructFile" 
+          printf "FillListOfDirsAndContent $resPathTmp " >>\
+                 "$pipeStructFile"
+          printf "$selectJobsListPath  $selectJobsListInfo \n\n" >>\
+                 "$pipeStructFile"
+          # resPathTmp is defined after task is executed. So, we have path for
+          # results of a previous running job.
+      fi
   fi
 
   if [[ "$jobId" != "$downloadTaskName" ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListInfo"
   fi
   
-  if [[ "${taskMap[$i]}" = multi ]]; then
+  if [[ "${taskMap[$i]}" != single ]]; then
       conMapTransFiles["$i"]="${conMapTransFiles[$i]}, $selectJobsListPath"
   fi
 
@@ -520,7 +512,7 @@ for i in "${!task[@]}"; do
       printf "VARS $jobId selectJobsListInfo=\"${selectJobsListInfo##*/}\"\n"\
              >> "$pipeStructFile"
   fi
-  if [[ "${taskMap[$i]}" = multi ]]; then
+  if [[ "${taskMap[$i]}" != single ]]; then
       printf "VARS $jobId selectJobsListPath=\"${selectJobsListPath##*/}\"\n"\
              >> "$pipeStructFile"
   fi
