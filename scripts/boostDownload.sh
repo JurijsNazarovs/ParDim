@@ -26,20 +26,6 @@ source "$homePath"/funcListParDim.sh
 
 curScrName=${0##*/}
 
-EchoLineBold
-echo "[Start] $curScrName"
-
-EchoLineSh
-lenStr=${#curScrName}
-lenStr=$((25 + lenStr))
-echo "$lenStr"
-printf "%-${lenStr}s %s\n"\
-        "The location of $curScrName:"\
-        "$homePath"
-printf "%-${lenStr}s %s\n"\
-        "The $curScrName is executed from:"\
-        "$PWD"
-EchoLineSh
 
 ## Input and default values
 argsFile=${1:-"args.listDev"} 
@@ -47,7 +33,7 @@ dagFile=${2:-"download.dag"} #create this
 jobsDir=${3:-"downTmp"} #working directory
 resPath=${4:-""} #return here on submit server. Can be read from file if empty
 isCondor=${6:-"true"} #true => script is executed in Condor(executed server)
-isSubmit=${7:-"true"} #false => dry run 
+isSubmit=${7:-"true"} #false => dry run
 
 ChkValArg "isCondor" "" "true" "false"
 argsFile="$(readlink -m "$argsFile")" #whole path
@@ -328,6 +314,10 @@ mkdir -p "$conOut"
 conFile="$jobsDir/${curScrName%.*}.condor"
 bash "$homePath"/makeCon.sh "$conFile" "$conOut" "$exePath"\
      "\$(args)" "" "1" "1" "\$(downSize)" "\$(transOut)" "\$(transMap)"
+if [[ "$?" -ne 0 ]]; then
+    ErrMsg "Cannot create a condor file: $conFile" "$?"
+fi
+
 iter=1 #number of downloading files				
 printf "" > "$dagFile"
 while IFS='' read -r line || [[ -n "$line" ]]; do
@@ -371,8 +361,5 @@ fi
 
 ## End
 rm -rf "$tabTmp1" "$tabTmp2" "$tabTmp3" #"$tabOut"
-
-echo "[End]  $curScrName"
-EchoLineBol
 
 exit 0
