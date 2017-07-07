@@ -175,21 +175,30 @@ if [[ "$taskMap" = *Multi* ]]; then
     fi
     printf "... "
 
-    # Holding reason line
+    # File with holding reason lines
+    PrintfLine > "$holdJobsReasFile"
+    printf "# This is a history file of all hold reasons, since\n"\
+           >> "$holdJobsReasFile"
+    printf "# some jobs might be released and finished successfully\n"\
+           >> "$holdJobsReasFile"
+    PrintfLine >> "$holdJobsReasFile"
     less "$logFile" \
         | grep  -A 1 "Event: ULOG_JOB_HELD" \
         | grep -B 1 "$holdReason" \
         | grep -v -- "^--$" \
         | grep "$holdReason" \
-               > "$holdJobsReasFile"
+               >> "$holdJobsReasFile"
 
-    # Condor id of hold given the reason
-    less "$holdJobsReasFile" \
+    # Condor id of holding jobs given the reason
+    tail -n +5 "$holdJobsReasFile" \
         | cut  -d " " -f 10 \
         | sort -u \
                > "$tmpFile1"
     # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$holdJobsFile"
+    grep -f "$tmpFile1" "$queuJobsFile" > "$tmpFile2"
+    # Select jobs which are not among complete jobs, since a hold job might
+    # be released if issue is fixed
+    comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
     printf "done\n"
 
 
@@ -218,7 +227,7 @@ if [[ "$taskMap" = *Multi* ]]; then
     ## List of pathes not completed/completed dirs
     # Detect list with selected dirs for specific task
     selJobsListName="$(
-  awk -F "\047"\
+    awk -F "\047"\
       '{
         for (i = 1; i <= NF; i++){
             if ($i ~ "-a selectJobsListPath"){
@@ -231,7 +240,7 @@ if [[ "$taskMap" = *Multi* ]]; then
               )"
 
     selJobsListPath="$(
-  awk -v RS="\047"\
+    awk -v RS="\047"\
       -v fileName="$selJobsListName"\
       '{
         if ($0 ~ "-a conMapTransFiles") {f = 1; next}
@@ -243,22 +252,22 @@ if [[ "$taskMap" = *Multi* ]]; then
      }' <<< "$submitStr"
               )"
 
-    # Not completed dirs
+    # Completed dirs
     # if nCompJobs != nQueJobs => print dir 
-    printf "Not completed directories ... "
+    printf "Completed directories ... "
     awk -v FS="$delim" -v OFS="$delim"\
         '{
-        if ($3 != $4){
+        if ($3 == $4){
            print($2)
        }
      }' "$sumDirsFile" \
         > "$tmpFile1"
-    grep -f "$tmpFile1" "$selJobsListPath" > "$notCompDirsFile"
+    grep -f "$tmpFile1" "$selJobsListPath" > "$compDirsFile"
     printf "done\n"
 
-    # Completed dirs
-    printf "Completed directories ... "
-    grep -v -f "$notCompDirsFile" "$selJobsListPath" > "$compDirsFile"
+    # Not completed dirs
+    printf "Not completed directories ... "
+    grep -v -f "$compDirsFile" "$selJobsListPath" > "$notCompDirsFile"
     printf "done\n"
 
     rm -rf "$tmpFile1" "$tmpFile2" "$tmpFile3"
@@ -303,7 +312,7 @@ if [[ "$taskMap" = *Single* ]]; then
     comm -13 "$compJobsFile" "$queuJobsFile" > "$notCompJobsFile"
     printf "done\n"
 
-
+    
     ## Hold Jobs
     printf "Hold jobs "
     if [[ -n $(RmSp "$holdReason") ]]; then
@@ -311,24 +320,33 @@ if [[ "$taskMap" = *Single* ]]; then
     fi
     printf "... "
 
-    # Holding reason line
+    # File with holding reason lines
+    PrintfLine > "$holdJobsReasFile"
+    printf "# This is a history file of all hold reasons, since\n"\
+           >> "$holdJobsReasFile"
+    printf "# some jobs might be released and finished successfully\n"\
+           >> "$holdJobsReasFile"
+    PrintfLine >> "$holdJobsReasFile"
     less "$logFile" \
         | grep  -A 1 "Event: ULOG_JOB_HELD" \
         | grep -B 1 "$holdReason" \
         | grep -v -- "^--$" \
         | grep "$holdReason" \
-               > "$holdJobsReasFile"
+               >> "$holdJobsReasFile"
 
-    # Condor id of hold given the reason
-    less "$holdJobsReasFile" \
+    # Condor id of holding jobs given the reason
+    tail -n +5 "$holdJobsReasFile" \
         | cut  -d " " -f 10 \
         | sort -u \
                > "$tmpFile1"
     # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$holdJobsFile"
+    grep -f "$tmpFile1" "$queuJobsFile" > "$tmpFile2"
+    # Select jobs which are not among complete jobs, since a hold job might
+    # be released if issue is fixed
+    comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
     printf "done\n"
 
-    rm -rf "$tmpFile1"
+    rm -rf "$tmpFile1" "$tmpFile2"
 fi
 
 
