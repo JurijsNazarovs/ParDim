@@ -20,7 +20,7 @@ scriptsPath="$homePath/scripts"
 funcListPath="$scriptsPath"/funcListParDim.sh
 source "$funcListPath"
 
-curScrName=${0##*/} #delete all before last backSlash
+curScrName="${0##*/}" #delete all before last backSlash
 #curScrName=${curScrName%.*} #delete extension
 downloadTaskName="Download" #several parts of the code depend on the name of
                             #a task with downloading script
@@ -46,8 +46,8 @@ printf "%-${lenStr}s %s\n"\
         "$PWD"
 EchoLineSh
 
-argsFile=${1:-"$homePath/args.listDev"} #file w/ all arguments for this shell
-isSubmit=${2:-"true"}
+argsFile="${1:-$homePath/args.listDev}" #file w/ all arguments for this shell
+isSubmit="${2:-true}"
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 ChkValArg "isSubmit" "" "false" "true"
@@ -463,9 +463,10 @@ for i in "${!task[@]}"; do
   # Prescripts
   if [[ "${taskMap[$i]}" != single && -z $(RmSp "$lastTask") ]]; then
       # Create selectJobsListInfo
-      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh "\
+      printf "SCRIPT PRE $jobId \"$scriptsPath/postScript.sh\" "\
              >> "$pipeStructFile" 
-      printf "FillListOfContent $selectJobsListPath $selectJobsListInfo \n\n"\
+      printf "pre.$jobId FillListOfContent "  >> "$pipeStructFile"
+      printf "\"$selectJobsListPath\" \"$selectJobsListInfo\" \n\n"\
              >> "$pipeStructFile"
   fi
 
@@ -479,12 +480,12 @@ for i in "${!task[@]}"; do
           selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
           selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
           
-          printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " >>\
-                 "$pipeStructFile" 
-          printf "FillListOfDirsAndContent $resPathTmp " >>\
-                 "$pipeStructFile"
-          printf "$selectJobsListPath  $selectJobsListInfo \n\n" >>\
-                 "$pipeStructFile"
+          printf "SCRIPT PRE $jobId \"$scriptsPath/postScript.sh\" " \
+                 >> "$pipeStructFile" 
+          printf "pre.$jobId FillListOfDirsAndContent \"$resPathTmp\" " \
+                 >> "$pipeStructFile"
+          printf "\"$selectJobsListPath\"  \"$selectJobsListInfo\" \n\n" \
+                 >> "$pipeStructFile"
           # resPathTmp is defined after task is executed. So, we have path for
           # results of a previous running job.
       fi
@@ -542,9 +543,10 @@ for i in "${!task[@]}"; do
          >> "$pipeStructFile" #just a name
   
   # Post Script to move dag files in right directories
-  printf "\nSCRIPT POST $jobId $scriptsPath/postScript.sh "\
+  printf "\nSCRIPT POST $jobId \"$scriptsPath/postScript.sh\" "\
          >> "$pipeStructFile"
-  printf "untarfiles ${taskDag[$i]%.*}.tar.gz \n\n" >> "$pipeStructFile"
+  printf "post.$jobId untarfiles \"${taskDag[$i]%.*}.tar.gz\"\n\n"\
+         >> "$pipeStructFile"
 
   lastTask="${task[$i]}" #save last executed task
   
@@ -554,9 +556,10 @@ for i in "${!task[@]}"; do
   PrintfLineSh >> "$pipeStructFile"
   printf "SUBDAG EXTERNAL $jobId ${taskDag[$i]} DIR $jobsDirTmp\n" >>\
          "$pipeStructFile"
-  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
+  printf "SCRIPT POST $jobId \"$scriptsPath/postScript.sh\" "\
          >> "$pipeStructFile"
-  printf "untarfilesfromdir $resPathTmp\n\n" >> "$pipeStructFile"
+  printf "post.$jobId untarfilesfromdir \"$resPathTmp\"\n\n"\
+         >> "$pipeStructFile"
   lastTask="$jobId"
 done
 

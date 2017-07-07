@@ -1,6 +1,6 @@
 #!/bin/bash
 #===============================================================================
-# This is a POST SCRIPT for condor job, which "clean" files after job is done.
+# This is a POST SCRIPT for condor job, which "prepare" files after job is done.
 # It is executed in the same directory as condor job.
 # Example JOB1 1.condor DIR dagTmp =>
 # => post script job is executed in dagTmp
@@ -9,7 +9,13 @@
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 source "$homePath"/funcListParDim.sh
-curScrName=${0##*/}
+curScrName="${0##*/}"
+
+logFile="${1:-outAndErr.postScript}.err"
+exec > "$logFile" 2>&1 #redirect both stdOut and stdErr to a file Globally
+#exec 2> "$logFile" #redirect stdErr to a file Globally
+
+shift
 
 task="${1,,}" #${a,,} = lower case
 shift
@@ -34,8 +40,19 @@ UntarFiles(){
   done
 }
 
+UntarFilesFromDir(){
+  # Usage: UntarFilesFromDir "$dirPath"
+  local dirPath=$1
+  ChkAvailToWrite "dirPath"
+  local files=("$dirPath"/*.tar.gz)
+  if [[ "${#files[@]}" -eq 0 ]]; then
+      ErrMsg "No .tar.gz files in $dirPath"
+  fi
+  UntarFiles "${files[@]}"
+}
+
 FillListOfDirs(){
-  local inpPath="${1}"
+  local inpPath="$1"
   local outfile="$2"
   ChkEmptyArgs "outfile" "inpPath"
   #ls -d "$inpPath/"*/ > "$outfile"
@@ -80,57 +97,59 @@ FillListOfContent(){
 ## Main part - selection based on task
 EchoLineBold
 echo "[Start] $curScrName"
+
+EchoLineSh
+lenStr=${#curScrName}
+lenStr=$((25 + lenStr))
+printf "%-${lenStr}s %s\n"\
+        "The location of $curScrName:"\
+        "$homePath"
+printf "%-${lenStr}s %s\n"\
+        "The $curScrName is executed from:"\
+        "$PWD"
+
 EchoLineSh
 echo "Task is $task"
 EchoLineSh
-echo "$PWD"
 
-# Fill list with directories from inpPath
-if [[ "$task" = filllistofdirs ]]; then
-    #1: inpDir, #2: outFile
-    FillListOfDirs "$1" "$2"
-    exit 0
-fi
 
-# Fill list with all content of directories from file
-if [[ "$task" = filllistofcontent ]]; then
-    #1: inpFile, #2: outFile
-    FillListOfContent "$1" "$2"
-    exit 0
-fi
+case "$task" in
+  # Fill list with directories from inpPath
+  filllistofdirs)
+    FillListOfDirs "$1" "$2" #1: inpDir, #2: outFile
+    ;;
+  
+  # Fill list with all content of directories from file
+  filllistofcontent)
+    FillListOfContent "$1" "$2" #1: inpFile, #2: outFile
+    ;;
+  
+  # Fill list of dirs and create file with content
+  filllistofdirsandcontent)
+    FillListOfDirs "$1" "$2" #1: inpDir, #2: outFile
+    FillListOfContent "$2" "$3" #1: inpFile, #2: outFile
+    ;;
+  
+  # Untar files by providing files
+  untarfiles)
+    UntarFiles "$@" #all files to untar
+    ;;
 
-# Fill list of dirs and create file with content
-if [[ "$task" = filllistofdirsandcontent ]]; then
-    #1: inpDir, #2: outFile
-    FillListOfDirs "$1" "$2"
-    #1: inpFile, #2: outFile
-    FillListOfContent "$2" "$3"
-    exit 0
-fi
+  # Untar files from a directory
+  untarfilesfromdir)
+    UntarFilesFromDir "$1" #directory
+    ;;
 
-# Untar files by providing files
-if [[ "$task" = untarfiles ]]; then
-    UntarFiles "$@"
-    exit 0
-fi
+  # No options
+  *)
+    ErrMsg "Unfamiliar task. Possible tasks are:
+           FillListOfDirs - fill a list with all directories of inpPath
+           FillListOfContent - fill a list with all content based on dirs
+           FillListOfDirsAndContent - 1) fill list 2) fill content
+           UntarFiles - untar all files
+           UntarFilesFromDir - untar files in a specific directory"
+esac
 
-# Untar files from directory
-if [[ "$task" = untarfilesfromdir ]]; then
-    dirPath=$1
-    ChkAvailToWrite "dirPath"
-    files=("$dirPath"/*.tar.gz)
-    if [[ "${#files[@]}" -eq 0 ]]; then
-        echo "No .tar.gz files in $dirPath"
-        exit 0
-    fi
-    UntarFiles "${files[@]}"
-    exit 0
-fi
-
-ErrMsg "Unfamiliar task. Possible tasks are:
-       FillListOfDirs - fill a list with all directories of inpPath
-       UntarFiles - untar all files
-       UNtarFilesFromDir - untar files in a specific directory"
-
+rm -rf "$logFile" #if we are here, then no errors happen
 echo "[End] $curScrName"
 EchoLineBold
