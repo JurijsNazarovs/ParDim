@@ -12,7 +12,8 @@ for multiple directories.
 Note: more about script is in section [Script designing for ParDim].
 
 ParDim provides tools to manage a workflow of scripts, download and prepare data
-for runs, and a great reporting function to get status of running jobs.
+for runs (section [Built-in Download stage]), and a great reporting function to
+get status of running jobs (section [ParDim installation and execution]).
 
 Сonstruction of a pipeline is completed in an intuitive description of
 stages in a text file, with ability to include/exclude a specific stage by
@@ -247,7 +248,8 @@ which are described below.
 [Script designing for ParDim]
 --------------------------------------------------------------------------------
 The flow of ParDim is dedicated to 2 steps:
-    - construct the DAG file (let call a script to construct a DAG file as DagMaker)
+    - construct the DAG file (let call a script to construct a DAG file as
+      DagMaker)
     - execute the constructed DAG file
 Thus, to design a stage for ParDim, user has to provide a script - DagMaker,
 which creates a DAG condor file, and ParDim handles its execution. 
@@ -259,8 +261,26 @@ arguments in the same order. In following subsections details for specific
 stages are provided.
 
 Note: DagMaker has to be able to read all necessary argument to  construct a
-DAG from the text file. It can be done by using ParDim function ReadArgs.
+DAG from the text file. It can be done by using a ParDim function ReadArgs.
 More details in the subsection *USEFULL FUNCTIONS*
+
+----------------------------------------
+*DIFFERENCE IN ARGUMENTS BETWEEN SINGLE-MAPPING
+AND MULTI-MAPPING SCRIPTS*
+----------------------------------------
+In a muti-mapping script there are two  more arguments compare to a
+single-mapping script: resDir and transOut. 
+
+The difference is because ParDim expects that results of a DAG are returned
+in a tar file in a specific directory, where later ParDim untar it.
+
+ParDim expects that in single-mapping scripts, the DagMaker developer provides
+unique names to tarfiles and directories with results to avoid an overlap of
+tar and untar files and directories.
+
+However, since multi-mapping scripts are executed for several directories, to
+avoid an overlap ParDim takes care of a directory with results - $resDir,
+and a unique name of tar file - $transOut.
 
 ----------------------------------------
 *SINGLE-MAPPING SCRIPTS*
@@ -280,7 +300,7 @@ Examples:
      Note: this is a short description of the built-in Download stage of ParDim.
      More details are in a section [Built-in Download stage].
   2) Assume we have a text file with N rows, where N rows contain information
-     about M id. We would like to analyze every ID separately. In this case the
+     about M IDs. We would like to analyze every ID separately. In this case the
      args is a path to a text file. The DAG file consists of M independent jobs,
      where every job creates a directory and saves the part of a file
      corresponding to one of M IDs. Thus, creating an input for a multi-mapping
@@ -292,16 +312,23 @@ DagMaker arguments
 Following arguments are provided for a single-mapping DagMaker script by ParDim:
 
   1. argsFile - a text file with arguments necessary for a DagMaker.
-     This is the file which you specify as a value in args in a stage description.
-     If nothing is specified, the main file with arguments (where the structure
-     of a pipeline is described) is used.
-  2. dagFile - the name of the DAG file which is submit in a second step.
-  3. jobsDir - working directory where DagMaker saves all necessary files
-     for DAG submission.
-  4. resPath - path where results are saved.
-  
-     The suggested code (to create a DAG description file) to save results
-     in the "$resPath":
+     This is a file, which you specify as a value in args in a stage description.
+
+     Note: if nothing is specified, the main file with arguments, where the
+     structure of a pipeline is described, is used.
+  2. dagFile - a name of a DAG file which is submit in a second step. DagMaker
+     has to use a value of this variable exactly, without any manipulations.
+     For example, to create a file just use: printf "" > "$dagFile".
+
+     Note: ParDim returns the file to a submit server.
+  3. jobsDir - a working directory where DagMaker saves all necessary files
+     for DAG submission. DagMaker has to use a value of this variable exactly,
+     without taking the full path or any other manipulations.
+
+     Note: ParDim returns the directory to a submit server.
+  4. resPath - path where results are saved. Below is a suggested chunk of code
+     for a DagMaker to save results in the "$resPath":
+     --------------------
      conFile="$jobsDir/Name.condor"
      jobId="$uniqJobId" #can be an iterator to count jobs
      
@@ -309,19 +336,26 @@ Following arguments are provided for a single-mapping DagMaker script by ParDim:
      printf "VARS $jobId transOut=\"$jobId.tar.gz\"\n" >> "$dagFile"
      printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
      >> "$dagFile"
+     --------------------
+     Note: structure of a condor file "$conFile" and an executed file is
+     provided in a subsection *STRUCTURE OF A CONDOR FILE* and
+     *STRUCTURE OF AN EXECUTION FILE* respectively.
 
-     Note: the structure of a condor file and executed one is given later.
+     Note: value of transOut has to be passed to an execution file and directory
+     with resutls has to be tared with a name corresponding to a value of
+     transOut.
      
   5. selectJobsListInfo - file with all information about results of a previous
-     stage. If previous stage exist.
+     stage, if a previous stage exists.
 
-     Note: Structure of file is provided later
+     Note: Structure of file is provided in the subsection
+     *STRUCTURE OF selectJobsListInfo AND inpDataInfo*
      
 ----------------------------------------
 *MULTI-MAPPING SCRIPTS*
 ----------------------------------------
 Multi-mapping scripts are designed to construct a DAG file based on information
-about the specific directory, so that it is executed for every of analyzed
+about a specific directory, so that script is executed for every of analyzed
 directories independently.
 
 --------------------
@@ -336,68 +370,92 @@ DagMaker arguments
 --------------------
 Following arguments are provided for a multi-mapping DagMaker script by ParDim:
 
-  1. argsFile - argument file which is used by dagMaker to pass all arguments.
-     This is the file which you specify as a value in args in a stage description.
-     So, if nothing is specified, the main file with arguments is used.
-  2. dagFile - the name of the DAG file which is submit in a second step.
-  3. jobsDir - working directory where DagMaker saves all necessary files
-     for DAG submission.
-  4. resPath - path where results are saved. Piece of code how to do that is
-     provided below.
-     
-     The suggested code (to create a DAG description file) to save results
-     in the "$resPath":
+  1. argsFile - a text file with arguments necessary for a DagMaker.
+     This is a file, which you specify as a value in args in a stage description.
+
+     Note: if nothing is specified, the main file with arguments, where the
+     structure of a pipeline is described, is used.
+  2. dagFile - a name of a DAG file which is submit in a second step. DagMaker
+     has to use a value of this variable exactly, without any manipulations.
+     For example, to create a file just use: printf "" > "$dagFile".
+
+     Note: ParDim returns the file to a submit server.
+  3. jobsDir - a working directory where DagMaker saves all necessary files
+     for DAG submission. DagMaker has to use a value of this variable exactly,
+     without taking the full path or any other manipulations.
+
+     Note: ParDim returns the directory to a submit server.
+  4. resPath - path where results are saved. Below is a suggested chunk of code
+     for a DagMaker to save results in the "$resPath":
+     --------------------
      conFile="$jobsDir/Name.condor"
-     jobId="$uniqJobId" #can be an an iterator to count jobs
-     # $transOut - variable described below
+     jobId="$uniqJobId" #can be an iterator to count jobs
      
      printf "JOB  $jobId $conFile\n" >> "$dagFile"
      printf "VARS $jobId transOut=\"$transOut.jobId.tar.gz\"\n" >> "$dagFile"
      printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
      >> "$dagFile"
+     --------------------
+     Note: structure of a condor file "$conFile" and an executed file is
+     provided in a subsection *STRUCTURE OF A CONDOR FILE* and
+     *STRUCTURE OF AN EXECUTION FILE* respectively.
 
-     Note: the structure of a condor file and executed one is given later
+     Note: value of transOut has to be passed to an execution file and directory
+     with resutls has to be tared with a name corresponding to a value of
+     transOut.
+     
+     Note: in contrast to a single-mapping script the transOut variable depends on
+     a $transOut variable, which is described under number 7 in the current list.
      
   5. inpDataInfo - file with all information about results of a previous
      stage for the same directory (specific analyzed directory and not for
-     all of them as in single script)
+     all of them as in single script).
 
-     Note: Structure of file is provided later.
-  6. resDir - directory to save results and has to be tared with following arg:
-  7. transOut - an unique name of a tarfile to tar resDir
+     Note: Structure of file is provided in the subsection
+     *STRUCTURE OF selectJobsListInfo AND inpDataInfo*.
 
-  Note: transOut is necessary to provide to create a unique tar file
-  corresponding to an analysed directory, since all of resutls are collected in
-  one directory and untared later by ParDim, when the stage is done.
+  Following arguments are provided to a DagMaker just to pass them further in an
+  execution file.
+  6. resDir - directory to save results, equals to a name of analysed directory.
+  DagMaker has to pass a value of this variable exactly, without taking the full
+  path or any other manipulations and should be used same way in an execution
+  file.
+  7. transOut - an unique name of a tarfile to tar $resDir in an execution file.
 
 ----------------------------------------
 *STRUCTURE OF A CONDOR FILE*
 ----------------------------------------
-In both cases of maps we specify transOut and transMap as variables for
-specific job. So, conFile description is:
+In both cases of maping scripts we specify transOut and transMap as variables
+for a specific job. So, "$conFile" description is:
 
+...
 transfer_output = $(transOut)
 transfer_output_remaps = "$(transMap)"
-arguments = "'arg1', 'arg2', '\$(transOut)', ..."
+arguments = "'arg1', 'arg2', '\$(transOut)', ...,
+             'resDir - in case of multi-mapping script'"
+...
 
 ----------------------------------------
 *STRUCTURE OF AN EXECUTION FILE*
 ----------------------------------------
-So, in an execution file, the results have to be tared in the name corresponding
-to a value in transOut variable. That is, in an execution file you have to have
-a variable like outTar=$3, where $3 - corresponds to a position of transOut in 
-arguments in condor file (see above). And then do:
-tar -czf "$dirWithAllresults" "$jobId.tar.gz"
+In an execution file results have to be tared with a name corresponding
+to a value of transOut variable. That is, in an execution file you have to have
+a variable like outTar=$3, where 3 - corresponds to a position of transOut in 
+arguments in condor file (see above). Then do:
+
+tar -czf "$outTar" "$dirWithAllresults ($resDir in case of multi-mapping script)"
 
 ----------------------------------------
-*STRUCTURE OF selectJobsListInfo AND inpDataInfo*
+*STRUCTURE OF a selectJobsListInfo
+AND an inpDataInfo*
 ----------------------------------------
-The difference between selectJobsListInfo and InpDataInfo is that
-first file is a combination of a second file but for all directories in
-the resulting directory of the previous stage. While the InpDataInfo contains
-information form the previous stage  just about analysing directory.
+The difference between a selectJobsListInfo and an InpDataInfo is that first file
+is a combination of a second file but for all directories in a resulting
+directory of a previous stage.
 
-The InpDataInfo structure is:
+While the InpDataInfo contains information from a previous stage just about
+single analysed directory. The InpDataInfo structure is:
+
 /path/to/directory/or/subdirectory:
 fileName1        size in bytes
 ....
@@ -405,32 +463,126 @@ fileNameN        size in bytes
 
 Note: the space above is '\t' - tabular.
 
+----------------------------------------
+*USEFULL FUNCTIONS*
+----------------------------------------
+--------------------
+ReadArgs
+--------------------
+Location: ParDim/scripts/funcListParDim.sh
+ReadArgs - reads arguments from a file in a section according to a label
+##[ scrLab ]## and substitute values in a code.
+
+For example, in an argument file we have a line: foo     23
+Then in a code after function ReadArgs is called, "echo $foo" returns 23.
+
+Input:
+ 1. argsFile - file with arguments
+ 2. scrLabNum - number of script labels
+ 3. scrLabList - vector of names of labels (scrLab) to search for arguments
+    according to the patern: ##[    scrLab  ]## - Case sensetive. Might be
+    spaces before, after and inside, but cannot split scrLab, ##[, and ]##.
+    If scrLab = "", the whole file is searched for arguments, and the last
+    entry is selected.
+ 4. posArgNum - number of arguments to read
+ 5. posArgList - possible arguments to search for
+ 6. reservArg  - reserved argument which can't be duplicated
+ 7. isSkipLabErr - binary variable true/false. If true, then no error appeared
+    for missed labels, if other labels exist. No arguments are read.
+
+Possible behavior:
+- If a variable is defined before reading file, and in a file it is empty,
+  then original value remains.
+- If an argument repeats several times, then warning appears and last value is
+  assigned.
+- If an argument is empty after reading a file, a warning appears.
+- If no labels are provided, the whole file is read.
+- If label appears several times, then error.
+- If label cannot be found while other labels exist, then error (or not if
+  isSkipLabErr = true)
+- If a file has no sections (scrLab), then the whole file is read
+    
+How to write an argsFile:
+argumentName(no spaces) argumentValue(spaces, tabs, any symbols)
+That is, after first column space has to be provided!
+
+--------------------
+PrintArgs
+--------------------
+Location: ParDim/scripts/funcListParDim.sh
+PrintArgs - print arguments for a specific script in a beautifull way.
+
+Input:
+ 1. scrName - name of a script to print arguments for. Can be an empty. It just
+    influences a header message.
+ 2-. posArgs - vector of arguments to print values of.
+
+Usage: PrintArgs "$scriptName" "${posArgs[@]}"
+
+--------------------
+makeCon.sh
+--------------------
+Location: ParDim/scripts/makeCon.sh
+makeCon.sh - creates a condor submit file, depending on parameters.
+
+Check input in the file in section "Input".
+
 
 --------------------------------------------------------------------------------
-[ParDim built-in boost downloading stage]  [Built-in Download stage]
+[Built-in Download stage]
 --------------------------------------------------------------------------------
-To download files to fill the dataPath ParDim.sh provides a stage
-##[ Download ]##. The name of the stage is reserved for built-in ParDim.sh script
-(boostDownload.sh),
-which has to be the first stage (or single) in a pipeline. If you would like to
-use your own downloading script, you have to use another name of the stage,
-except ##[ Download ]##.
+To download files (to fill a dataPath) ParDim provides a stage Download.
 
-The Download stage of ParDim.sh downloads uniques files from the table
-and distribute them in right directories, with several options:
+The Download stage of the ParDim downloads uniques files from a table and
+distribute them in right directories. The Download stage is written for HTCondor
+environment, it downloads every file on separate machine simultaneously, which
+boosts downloading process in times.
 
-  - save files with original names or based on relative name according to
-    pattern: relativeName.columnName.extensionOfRelName
+The Download stage provides several usefull options: 
+  - save files with original names or based on relative name according to the
+    pattern: "relativeName.columnName.extensionOfRelativeName"
     e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz
     
     Note: names for relativeName column is not changed
-  - combine several files, splited by tabDelimJoin, then
-    final name is based on the name of 1st file. If it is relative name,
-    then based on 1st name of relative names, if there are several to join.
+  - combine several files in one output
 
-Since, the Download stage is written for HTCondor environment, it downloads
-every file on separate machine simultaneously, which boosts downloading process
-in times.
+Note: the name of the stage is reserved for a built-in ParDim.sh script
+boostDownload.sh. If you would like to use your own downloading script, you
+have to use another name of the stage, except ##[ Download ]##.
 
-The better description of downloading arguments is provided in Download manual.
+----------------------------------------
+The structure of an input table:
+----------------------------------------
+One of columns contains basename of directories, where files are supposed to be
+saved. The number of column is set in an argument tabDirCol.
 
+Other columns contain URLs to download files. One column corresponds to a
+specific type of downloading files. For example, column of control files.
+
+To combine files in one output, links in a column have to be split by a value
+in an argument tabDelimJoin.
+
+Since Download stage is developed for HTCondor environment, it is necessary to
+detect size for downloading files. The Download stage does it automatically,
+but if this information is provided in a table, then argument tabIsSize should
+be set as true.
+
+----------------------------------------
+Input in a file with arguments:
+----------------------------------------
+ 1. tabPath - path to a input table with links to files.
+ 2. tabDelim - delimeter used in a table.
+               Default value is ','.		
+ 3. tabDelimJoin - delimeter to use in a table to join files.
+                   Default value is ';'.
+ 4. tabDirCol - index of column with directory.
+                Default value is 1.
+ 5. tabIsOrigName - true/false, Indicates if use original names or not.
+                    Default value is false.
+ 6. tabRelNameCol - column to use as a base for names if tabOrigName=false.
+                    Default value is 2.
+ 7. tabIsSize - true/false. Indicates if table has size of files or not.
+                Default value is false.
+ 8. nDotsExt - number of dots before extension of download files starts.
+               Default value is 1.
+--------------------------------------------------------------------------------
