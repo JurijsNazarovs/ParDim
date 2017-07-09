@@ -570,7 +570,7 @@ be set as true.
 ----------------------------------------
 Input in a file with arguments:
 ----------------------------------------
- 1. tabPath - path to a input table with links to files.
+ 1. tabPath - path to an input table with links to files.
  2. tabDelim - delimeter used in a table.
                Default value is ','.		
  3. tabDelimJoin - delimeter to use in a table to join files.
