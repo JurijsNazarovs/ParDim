@@ -35,9 +35,11 @@ resPath=${4:-""} #resutls are written here. Should be the full path
 isCondor=${5:-false}
 selectJobsListInfo=${6-""} #file with all information about directories
 
+
 ## Prepare working directories
 jobsDir="${dagFile%.*}Tmp" #content of jobsDir is sent to submit machine
 mkdir -p "$jobsDir"
+
 
 ## Execute script to create a dag file
 # dagFile and curJobDir are provided since can be in different places 
