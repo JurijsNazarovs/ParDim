@@ -125,6 +125,11 @@ The output of MakeReport.sh is 8 files:
 7. *.notCompDirs.list - path to not completed directories
 8. *.compDirs.list - path to completed directories
 
+Note: one of the output files of MakeReport.sh is a list of not completed
+directories. If you want to rerun an analysis of these directories after some
+possible changes, you can submit the path to this list as a selectJobsListPath
+argument in ParDim. More details are in the section "[ParDim stage]".
+
 
 --------------------------------------------------------------------------------
 [Pipeline construction]
@@ -553,6 +558,8 @@ have to use another name of the stage, except ##[ Download ]##.
 ----------------------------------------
 The structure of an input table:
 ----------------------------------------
+First row of a table is considered as a header and defines names of columns.
+
 One of columns contains basename of directories, where files are supposed to be
 saved. The number of column is set in an argument tabDirCol.
 
@@ -566,6 +573,16 @@ Since Download stage is developed for HTCondor environment, it is necessary to
 detect size for downloading files. The Download stage does it automatically,
 but if this information is provided in a table, then argument tabIsSize should
 be set as true.
+
+--------------------
+Example of a table
+--------------------
+experiment,chip,ctl,dnase
+ENCSR473SUA,URL_Chip,URL_Ctl1;URL_Ctl2,URL_Dnase
+ENCSR473SUB,URL_Chip,URL_Ctl1,URL_Dnase
+
+where , - delimeter for a table (argument tabDelim)
+      ; - delimeter to join files (argument tabDelimJoin)
 
 ----------------------------------------
 Input in a file with arguments:
