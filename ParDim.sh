@@ -46,6 +46,12 @@ printf "%-${lenStr}s %s\n"\
         "$PWD"
 EchoLineSh
 
+if [[ "$scriptsPath" != $(RmSp "$scriptsPath") ]]; then
+    ErrMsg "Path for ParDim's scripts contains spaces:
+            $scriptsPath
+            Reinstall ParDim in a path without spaces."
+fi
+
 argsFile="${1:-$homePath/args.listDev}" #file w/ all arguments for this shell
 isSubmit="${2:-true}"
 argsFile="$(readlink -m "$argsFile")" #whole path
@@ -225,12 +231,22 @@ jobsDir=$(mktemp -duq dagTmpXXXX)
 selectJobsListPath=""
 ReadArgs "$argsFile" 1 "$curScrName" "${#posArgs[@]}" "${posArgs[@]}"\
          > /dev/null
+PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
 
 if [[ "$jobsDir" = "/tmp"* ]]; then
 	WarnMsg "jobsDir = $jobsDir 
                 Condor might not allowed to use /tmp.
                 If pipeline fails, please change jobsDir."
 fi
+
+for i in selJobsListPath resPath dataPath; do
+  eval "strTmp=\"\$$i\""
+  if [[ "$strTmp" != $(RmSp "$strTmp") ]]; then
+    ErrMsg "$i = $strTmp
+           No spaces are allowed."
+  fi
+done
+
 jobsDir="$(readlink -m "$jobsDir")"
 dataPath="$(readlink -m "$dataPath")"
 
@@ -344,8 +360,6 @@ done
 
 
 ## Print pipeline structure
-PrintArgs "$curScrName" "argsFile" "${posArgs[@]}"
-
 maxLenStr=0
 nZeros=${#task[@]} #number of zeros to make an order
 nZeros=${#nZeros}
@@ -463,10 +477,10 @@ for i in "${!task[@]}"; do
   # Prescripts
   if [[ "${taskMap[$i]}" != single && -z $(RmSp "$lastTask") ]]; then
       # Create selectJobsListInfo
-      printf "SCRIPT PRE $jobId \"$scriptsPath/postScript.sh\" "\
+      printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh "\
              >> "$pipeStructFile" 
       printf "pre.$jobId FillListOfContent "  >> "$pipeStructFile"
-      printf "\"$selectJobsListPath\" \"$selectJobsListInfo\" \n\n"\
+      printf "$selectJobsListPath $selectJobsListInfo \n\n"\
              >> "$pipeStructFile"
   fi
 
@@ -480,11 +494,11 @@ for i in "${!task[@]}"; do
           selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
           selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
           
-          printf "SCRIPT PRE $jobId \"$scriptsPath/postScript.sh\" " \
+          printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " \
                  >> "$pipeStructFile" 
-          printf "pre.$jobId FillListOfDirsAndContent \"$resPathTmp\" " \
+          printf "pre.$jobId FillListOfDirsAndContent $resPathTmp " \
                  >> "$pipeStructFile"
-          printf "\"$selectJobsListPath\"  \"$selectJobsListInfo\" \n\n" \
+          printf "$selectJobsListPath $selectJobsListInfo \n\n" \
                  >> "$pipeStructFile"
           # resPathTmp is defined after task is executed. So, we have path for
           # results of a previous running job.
@@ -543,9 +557,9 @@ for i in "${!task[@]}"; do
          >> "$pipeStructFile" #just a name
   
   # Post Script to move dag files in right directories
-  printf "\nSCRIPT POST $jobId \"$scriptsPath/postScript.sh\" "\
+  printf "\nSCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
-  printf "post.$jobId untarfiles \"${taskDag[$i]%.*}.tar.gz\"\n\n"\
+  printf "post.$jobId UntarFiles ${taskDag[$i]%.*}.tar.gz\n\n"\
          >> "$pipeStructFile"
 
   lastTask="${task[$i]}" #save last executed task
@@ -556,9 +570,9 @@ for i in "${!task[@]}"; do
   PrintfLineSh >> "$pipeStructFile"
   printf "SUBDAG EXTERNAL $jobId ${taskDag[$i]} DIR $jobsDirTmp\n" >>\
          "$pipeStructFile"
-  printf "SCRIPT POST $jobId \"$scriptsPath/postScript.sh\" "\
+  printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
-  printf "post.$jobId untarfilesfromdir \"$resPathTmp\"\n\n"\
+  printf "post.$jobId UntarFilesFromDir $resPathTmp\n\n"\
          >> "$pipeStructFile"
   lastTask="$jobId"
 done
