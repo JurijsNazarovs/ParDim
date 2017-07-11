@@ -54,7 +54,7 @@ JoinToStr(){
   # $1 is the splitting character
   # >$1 everything to combine (spaces are skipped)
   # Usage: JoinToStr "\' \'" "$a" "$b" ... or ("$a[@]")
-  local spC=$1
+  local spC="$1"
   shift
 
   local args="$1"
@@ -62,9 +62,9 @@ JoinToStr(){
 
   local i
   for i in "$@"; do
-    if [[ -n $(RmSp "$i") ]]; then
+    #if [[ -n $(RmSp "$i") ]]; then
          args="$args$spC$i"
-    fi
+    #fi
   done
 
   echo "$args"    
@@ -76,7 +76,7 @@ WarnMsg(){
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
-  msg=${1:-"Default message about warning"}
+  msg="${1:-Default message about warning}"
 
   echo "*******************************************"  >> /dev/stderr
 
@@ -93,8 +93,8 @@ ErrMsg(){
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
-  local msg=${1:-"Default message about an error"}
-  local exFl=${2:-"1"} #default exit code
+  local msg="${1:-Default message about an error}"
+  local exFl="${2:-1}" #default exit code
 
   EchoLineBoldSh >> /dev/stderr
   
@@ -109,7 +109,7 @@ ErrMsg(){
 ## Some functions - still not sure about name
 GetNumLines(){
   # Function returns number of lines in the file
-  fileName=$1
+  fileName="$1"
 
   if [[ "${fileName##*.}" = "gz" ]]; then
       echo "$(zcat $fileName | wc -l)"
@@ -121,7 +121,7 @@ GetNumLines(){
 Max(){
   # Function returns the maximum element among the input
   # Input: max 1 2 3 4 5 Or max ${arr[@]}
-  local res=$1
+  local res="$1"
   shift 
   local i
 
@@ -136,7 +136,7 @@ Max(){
 Min(){
   # Function returns the minimum element among the input
   # Input: min 1 2 3 4 5 Or min ${arr[@]}
-  local res=$1
+  local res="$1"
   shift
   local i
 
@@ -176,14 +176,14 @@ ChkValArg(){
   ## Function checks if $argLab($1) has one of following valuesm and add msg($2)
   # in ErrMsg.
   # Usage: ChkValyArg "isSubmit" "msg" "1" "0" "-1"
-  local argLab=${1}
+  local argLab="$1"
   if [[ -z $(RmSp "$argLab") ]]; then
       ErrMsg "Argument provided tp ChkValArg is empty
                 or consists of spaces."
       continue
   fi
   shift
-  local msg=${1}
+  local msg="$1"
   shift
   local vals=("$@")
   if [[ "${#vals[@]}" -eq 0 ]]; then
@@ -248,7 +248,7 @@ ChkAvailToWrite(){
 }
 
 ChkUrl(){
-  local string=$1
+  local string="$1"
   local regex='^(https?|ftp|file)://'
   regex+='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-‌​A-Za-z0-9\+&@#/%=~_|‌​]$'
   if [[ $string =~ $regex ]]
@@ -260,8 +260,8 @@ ChkUrl(){
 }
 
 ChkStages(){
-  local fStage=$1
-  local lStage=$2
+  local fStage="$1"
+  local lStage="$2"
   if [[ "$fStage" -eq -1 ]]; then
       ErrMsg "First stage is not supported." 
   fi
@@ -449,7 +449,7 @@ ReadArgs(){
   #      argumentName(no spaces) argumentValue(spaces, tabs, any symbols)
   # That is after first column space has to be provided!
   #
-  # Use: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}"\
+  # Usage: ReadArgs "$argsFile" "$scrLabNum" "${scrLabList[@]}"\
   #               "$posArgsNum" "${posArgs[@]}" "$reservArg" "$isSkipLab"
 
   ## Input
@@ -673,7 +673,7 @@ ReadArgs(){
 PrintArgs(){
   ## Print arguments for the "current" script
   ## Use: PrintArgs "$scriptName" "${posArgs[@]}"
-  local curScrName=$1
+  local curScrName="$1"
   shift 
 
   local posArgs=("$@")
@@ -709,7 +709,7 @@ mk_dir(){ #Delete.
   # Function is alias to real mkdir -p, but which proceeds an exit flag in a
   # right way.
 
-  local dirName=$1
+  local dirName="$1"
   if [[ -z $(RmSp "$dirName") ]]; then
       ErrMsg "Input is empty"
   fi

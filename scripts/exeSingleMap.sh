@@ -24,16 +24,16 @@ shopt -s extglob #to use !
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
 source "$homePath"/funcListParDim.sh #call file with functions
 
-curScrName=${0##*/}
+curScrName="${0##*/}"
 EchoLine
 echo "[Start] $curScrName"
 
-taskScript=${1} #script to create dag (dagMaker)
-argsFile=${2}
-dagFile=${3:-"tmp.dag"} #name of output dag, with independent jobs
-resPath=${4:-""} #resutls are written here. Should be the full path
-isCondor=${5:-false}
-selectJobsListInfo=${6-""} #file with all information about directories
+taskScript="$1" #script to create dag (dagMaker)
+argsFile="$2"
+dagFile="$3:-tmp.dag}" #name of output dag, with independent jobs
+resPath="$4" #resutls are written here. Should be the full path
+isCondor="${5:-false}"
+selectJobsListInfo="$6" #file with all information about directories
 
 
 ## Prepare working directories

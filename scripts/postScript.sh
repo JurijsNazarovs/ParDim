@@ -42,7 +42,7 @@ UntarFiles(){
 
 UntarFilesFromDir(){
   # Usage: UntarFilesFromDir "$dirPath"
-  local dirPath=$1
+  local dirPath="$1"
   ChkAvailToWrite "dirPath"
   local files=("$dirPath"/*.tar.gz)
   if [[ "${#files[@]}" -eq 0 ]]; then

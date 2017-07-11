@@ -8,12 +8,12 @@ shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
 
 ## Input and default values
-link=$1
-path=${2:-"./"}
-delim=${3:-","} #use to split path
-delimJoin=${4:-";"} #use to split link
-outTar=$5 #tarFile to return back on submit machine
-isDry=${6:-true}
+link="$1"
+path="${2:-./}"
+delim="${3:-,}" #use to split path
+delimJoin="${4:-;}" #use to split link
+outTar="$5" #tarFile to return back on submit machine
+isDry="${6:-true}"
 
 
 ## Initial preparation

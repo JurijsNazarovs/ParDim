@@ -1,6 +1,6 @@
 [+] in ParDim checkArgsList looks redundend and probably has to be deleted
-[-] Fill args.listDev
-[-] Check what will be if Condor fail to create dag file
+[+] Fill args.listDev. Write a script to fill
+[+] Check what will be if Condor fail to create dag file
 [+] Think about providing first stage as condor or local. Delete local launch
 [+] Check in "$tabOut" of boostDownload.sh last columns to see if there are some
     repetitve values. If there are, then it means that in the file:
@@ -41,43 +41,59 @@
     ChkUrl = add to download
     
 [+] Check that jobsDir is in working directory
-[-] Change jobsDir in exeMultiMap.sh for $jobsDir/multiMap/${dagName%.*}
+[+] Change jobsDir in exeMultiMap.sh for $jobsDir/multiMap/${dagName%.*}
 [+] Why download/download in boostDownload using exeSingleMap
 [+] If condor then in boost download conOut for their makeCon.sh should be run
     with conOut in jobsDir
-[-] Fix boostDownlaod to send all files in exeDownload (maybe no need, if I do not create anything there)
 
-[-] Delete "Since you download data, make sure" (because I set directory now)
 [+] jodsDir can be in any directories where we can write, except tmp. Condor
 does not work there.
 [+] Create better post script
 [+] ask about error in makeCondor connected with line 56 in exeDownload.sh
-[-] Create specific messages with errors in exe of taskScripts and
-    collect them usint postScript
-[-] Combine single and multimap in one script with argument map to chose
-[-] Despite single or multiMap provide file with all input of previous result
+[x] Create specific messages with errors in exe of taskScripts and
+    collect them usint postScript. Stupid!
+[x] Combine single and multimap in one script with argument map to chose
+[+] Despite single or multiMap provide file with all input of previous result
 [+] Download has to be the first or single task
-[-] extension for input file as an argument in makeAquas.dag
-[-] line about 800. conFile provide number of cores of peaks and all other multi
+[+] extension for input file as an argument in makeAquas.dag
+[+] line about 800. conFile provide number of cores of peaks and all other multi
     core scripts
 [+] make a relResPath to any of pipeline parts => the next part is running from
     that path
-[-?] add postscript to open files after multimap.
-[-] add iterator in multimap to avoid overlapping of tarfiles
-Now mapping scripts accept 3 parameters: taskScript, argsFile, dagFile
-exeSingleMap.sh provides 3 parameters: argsFile, dagFile, curJobDir (working directory)
-[-] In multiMap jobs are run from multimap dir and return also there, thus,
+[+] add postscript to open files after multimap.
+[+] add iterator in multimap to avoid overlapping of tarfiles
+
+[+] In multiMap jobs are run from multimap dir and return also there, thus,
     in scritps have to write an output such that returns in specific directory,
     which is wrong. I should provide tshis derectory. That is,
     transfer output have to have directory structure somehow. Best option is
     dirName/ - tarFile
-[-] in makeIdCtlPool.sh condor accepts transOut and transMap. Since they are
+[-] in makeIsCtlPool.sh condor accepts transOut and transMap. Since they are
     fixed, probably no need to pass them as arguments.
-[-] change posEnd in reading input. ALso, try to make code more concise
+[+] change posEnd in reading input. ALso, try to make code more concise
 The connection between dataPath and Download is hardcoded
 selectJobListPath is empty in case of pipeline = just Download
 
-[-] exeAquas/makeAquas - add specname as arguments
+[+] exeAquas/makeAquas - add specname as arguments
+[+] check that seleJobsList is not empty file
+[+] check duplicates in transfering files
+[+] multimap. Check if file for specific directory is empty. ??
+[+] transFiles in respect of dirname of scirpts
+
+[+] Trimming maybe no need to unzip since it takes too much memory,
+    if unzip then increase memory for every file like *5
+
+[-] save output of pre/post scripts
+[-] create a continue argument, which continue to run jobs from specific stage
+    Need to
+[-] in ToTag exe do not save bam and bam.bai files. They take too much space
+[-]in README download, readargs, printargs
+[+] support of not installed files in ChipseqParDim ot put on hold
+
+
+"Be carefull because now JoinToStr leaves spaces between commas. It is necessary
+to provide empty arguments. So, should see if condor is ok with having a lot of commas
+in transfer Files"
 
 Download has to be the first or single task
 
@@ -86,60 +102,4 @@ If single task if first no need for dataPath or select job list
 exeMap scritps transfer conOut* dagFile and jobsDir
 
 Every Dagmaker has to accept exeFile from argslist
-
-
-If relPath has dataPath then the data Path is used for resulted path. It is
-made to fill dataPath with different files. For example, I have a dataPath
-and I want to fill it with dummy files like pool.flag to continue pipeline
-## ========= ParDim.sh ====== ##
-input of:
-      stages for scripts. In every section first and Last stage. if no last, then use last as first and another way
-      
-      tree scripts
-      download script
-      preprocess script
-
-check that integrTask != coreTask, including scripts
-
-how to change mapStages, so that people can provide their stages
-
-
-
-#############################
-[-]Prep-process (A lot of question here)
-
-[1] Trimming
-[2] From bam
-
-
-
-# Trimming questions
-1) Are we going to use data which is not downloaded, so, if this is in local server.
-2) Assume we have another part, which calls dataPreparation. This part should be similar to makeAqausDag.sh. Lets call it makePrepDag.sh.
-
-So, we still use same structure of the pipeline, adding new taskscript as makePrepDag.sh. Thus, for every of of the directory we will have SPLICE specificDir.dag.
-
-
-######
-create specificDir.dag using makePrepDag:
-
-Read trimFiles - verctor of different combinations to trim. like, "chip,ctl;dnase"
-Need to create 2 different classes of parents for every group between semicolumns - call such groups between semicolumns as group A.
-For every type in group A, we detect right corresponding files using ctlExt, chipExt and etc. We also detect the minimum length of reads using all files in a group.
-For every file we create a Parent to trim file. We use 1 condor with 1 executable - exeFilePrep.sh. and generate right argument file.
-
-Thus, for Parent we will have 2 variables: Operation = trim and argsListName (and maybe other condor parameters.)
-
-Thus, the exeFilePrep.sh should accept 2 parameters: method of data preparation and argslist.
-
-
-
-
-#######
-[-] Submitting Aquas part
-
-There is a huge problem with submitting aquas part alone withought any part before.
-1) Aquas part take too much time to unpack files and pack back to create dag files. About 4 mins for 1 dir. => need to unpack them in allignment part, create some flags and read flags in aquas.
-
-2) If start aquas as a first step, then all these 4 mins for every directory will start to implement on machine. Thus, need to use screen - which is not reliable or poot it in Condor. TO put it in Condor, necessary to provide hello.sh script as a taskScript instead of downloading. Emptu taskDag. Provide file with selected dirs (selectJobsTabPath)
 
