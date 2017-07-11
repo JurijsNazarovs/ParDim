@@ -52,7 +52,7 @@ if [[ "$scriptsPath" != $(RmSp "$scriptsPath") ]]; then
             Reinstall ParDim in a path without spaces."
 fi
 
-argsFile="${1:-$homePath/args.listDev}" #file w/ all arguments for this shell
+argsFile="${1:-$homePath/args.ParDim}" #file w/ all arguments for this shell
 isSubmit="${2:-true}"
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
