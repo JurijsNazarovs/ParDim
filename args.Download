@@ -1,0 +1,9 @@
+tabPath                 /home/nazarovs/projects/ParDim/tmp/perm.csv
+exePath                 /home/nazarovs/projects/ParDim/scripts/exeDownload.sh
+tabDelim		,
+tabDirCol               1
+tabIsOrigName           true
+tabIsSize               false
+nDotsExt                1
+resPath                 /tmp/hui
+jobsDir                 downTmp 
