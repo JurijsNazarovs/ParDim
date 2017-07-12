@@ -15,7 +15,7 @@ conFile="${1:-condor.tmp}"
 outPath="${2:-conOut}"
 exeFile="$3"	
 args="$4" #string of arguments from condor to executable" (1\ \2\ \3)
-transFiles="5" #files to transfer
+transFiles="$5" #files to transfer
 
 nCpus="${6:-1}"
 memSize="${7:-1}"
