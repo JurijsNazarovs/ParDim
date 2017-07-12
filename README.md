@@ -21,15 +21,15 @@ deleting chunks of parameters. As an example, pipeline with stage1 -> stage3
 looks like:
 
 ---
-\#\#[ stage1 ]\#\#\\
-execute    true\\
-...\\
-\#\#[ stage2 ]\#\#\\
-execute    false\\
-...\\
-\#\#[ stage3 ]\#\#\\
-execute    true\\
-...\\
+\#\#[ stage1 ]\#\#
+execute    true
+...
+\#\#[ stage2 ]\#\#
+execute    false
+...
+\#\#[ stage3 ]\#\#
+execute    true
+...
 ---
 
 ParDim provides all necessary information about a previous stage of a pipeline
