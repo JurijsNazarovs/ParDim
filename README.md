@@ -20,7 +20,7 @@ keep all information in one text file and control the workflow without
 deleting chunks of parameters. As an example, pipeline with stage1 -> stage3
 looks like:
 
---------------------
+
 \#\#[ stage1 ]\#\#
 execute    true
 ...
@@ -30,14 +30,14 @@ execute    false
 \#\#[ stage3 ]\#\#
 execute    true
 ...
---------------------
+
 
 ParDim provides all necessary information about a previous stage of a pipeline
 to a next stage using text files. It controls that results of a stage are
 transferred in a right directory in an organized way (according to a stage name).
 
 
-# ParDim installation and execution]
+# ParDim installation and execution
 
 ## Installation
 1. To install the ParDim framework go in a directory where you would like to
