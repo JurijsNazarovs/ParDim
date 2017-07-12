@@ -480,7 +480,7 @@ for i in "${!task[@]}"; do
       # Create selectJobsListInfo
       printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh "\
              >> "$pipeStructFile" 
-      printf "pre.$jobId FillListOfContent "  >> "$pipeStructFile"
+      printf "$jobsDir/pre.$jobId FillListOfContent "  >> "$pipeStructFile"
       printf "$selectJobsListPath $selectJobsListInfo \n\n"\
              >> "$pipeStructFile"
   fi
@@ -497,7 +497,7 @@ for i in "${!task[@]}"; do
           
           printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " \
                  >> "$pipeStructFile" 
-          printf "pre.$jobId FillListOfDirsAndContent $resPathTmp " \
+          printf "$jobsDir/pre.$jobId FillListOfDirsAndContent $resPathTmp " \
                  >> "$pipeStructFile"
           printf "$selectJobsListPath $selectJobsListInfo \n\n" \
                  >> "$pipeStructFile"
@@ -560,7 +560,7 @@ for i in "${!task[@]}"; do
   # Post Script to move dag files in right directories
   printf "\nSCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
-  printf "post.$jobId UntarFiles ${taskDag[$i]%.*}.tar.gz\n\n"\
+  printf "$jobsDir/post.$jobId UntarFiles ${taskDag[$i]%.*}.tar.gz\n\n"\
          >> "$pipeStructFile"
 
   lastTask="${task[$i]}" #save last executed task
@@ -573,7 +573,7 @@ for i in "${!task[@]}"; do
          "$pipeStructFile"
   printf "SCRIPT POST $jobId $scriptsPath/postScript.sh "\
          >> "$pipeStructFile"
-  printf "post.$jobId UntarFilesFromDir $resPathTmp\n\n"\
+  printf "$jobsDir/post.$jobId UntarFilesFromDir $resPathTmp\n\n"\
          >> "$pipeStructFile"
   lastTask="$jobId"
 done
