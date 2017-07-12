@@ -54,10 +54,10 @@ JoinToStr(){
   # $1 is the splitting character
   # >$1 everything to combine (spaces are skipped)
   # Usage: JoinToStr "\' \'" "$a" "$b" ... or ("$a[@]")
-  local spC="$1"
+  local spC=$1
   shift
 
-  local args="$1"
+  local args=$1
   shift
 
   local i
@@ -76,7 +76,7 @@ WarnMsg(){
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
-  msg="${1:-Default message about warning}"
+  msg=${1:-Default message about warning}
 
   echo "*******************************************"  >> /dev/stderr
 
@@ -93,8 +93,8 @@ ErrMsg(){
   #               Line2" 1
   # Function replace \n[\t]+ with \n, so, no tabs.
   # It is done to make code beautiful, so that in code I can put tabs.
-  local msg="${1:-Default message about an error}"
-  local exFl="${2:-1}" #default exit code
+  local msg=${1:-Default message about an error}
+  local exFl=${2:-1} #default exit code
 
   EchoLineBoldSh >> /dev/stderr
   
@@ -136,7 +136,7 @@ Max(){
 Min(){
   # Function returns the minimum element among the input
   # Input: min 1 2 3 4 5 Or min ${arr[@]}
-  local res="$1"
+  local res=$1
   shift
   local i
 
@@ -176,14 +176,14 @@ ChkValArg(){
   ## Function checks if $argLab($1) has one of following valuesm and add msg($2)
   # in ErrMsg.
   # Usage: ChkValyArg "isSubmit" "msg" "1" "0" "-1"
-  local argLab="$1"
+  local argLab=$1
   if [[ -z $(RmSp "$argLab") ]]; then
       ErrMsg "Argument provided tp ChkValArg is empty
                 or consists of spaces."
       continue
   fi
   shift
-  local msg="$1"
+  local msg=$1
   shift
   local vals=("$@")
   if [[ "${#vals[@]}" -eq 0 ]]; then
@@ -214,9 +214,9 @@ ChkExist(){
   # $3 - label to show in case of error
   # Usage: ChkExist f "$script" "Script for task: $script\n"
 
-  local inpLbl="$3"
+  local inpLbl=$3
   if [[ -z $(RmSp "$inpLbl") ]]; then
-      inpLbl="$2"
+      inpLbl=$2
   fi
 
   if [[ -z $(RmSp "$2") ]]; then
@@ -248,7 +248,7 @@ ChkAvailToWrite(){
 }
 
 ChkUrl(){
-  local string="$1"
+  local string=$1
   local regex='^(https?|ftp|file)://'
   regex+='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-‌​A-Za-z0-9\+&@#/%=~_|‌​]$'
   if [[ $string =~ $regex ]]
@@ -260,8 +260,8 @@ ChkUrl(){
 }
 
 ChkStages(){
-  local fStage="$1"
-  local lStage="$2"
+  local fStage=$1
+  local lStage=$2
   if [[ "$fStage" -eq -1 ]]; then
       ErrMsg "First stage is not supported." 
   fi
@@ -353,7 +353,7 @@ ArrayDelInd(){
   local indDel
   local tmp
   while (( nIndDel -- > 0 )) ; do
-    tmp="$1"
+    tmp=$1
     indDel+=( "$tmp" )
     shift
   done
@@ -379,7 +379,7 @@ ArrayDelElem(){
   local elem
   local tmp
   while (( nElem -- > 0 )) ; do
-    tmp="$1"
+    tmp=$1
     elem+=( "$tmp" )
     shift
   done
@@ -453,7 +453,7 @@ ReadArgs(){
   #               "$posArgsNum" "${posArgs[@]}" "$reservArg" "$isSkipLab"
 
   ## Input
-  local argsFile="$1"
+  local argsFile=${1}
   ChkExist "f" "$argsFile" "File with arguments"
   shift
 
@@ -467,7 +467,7 @@ ReadArgs(){
       scrLabList=""
   else
     while (( scrLabNum -- > 0 )) ; do
-      scrLab="$1"
+      scrLab=${1}
       if [[ $(RmSp "$scrLab") != "$scrLab" ]]; then
           ErrMsg "Impossible to read arguments for \"$scrLab\".
                   Remove spaces: $scrLab"
@@ -491,7 +491,7 @@ ReadArgs(){
       posArgList=""
   else
     while (( posArgNum -- > 0 )) ; do
-      posArg="$1"
+      posArg=${1}
       if [[ $(RmSp "$posArg") != "$posArg" ]]; then
           ErrMsg "Possible argument cannot have spaces: $posArg"
       fi
@@ -673,7 +673,7 @@ ReadArgs(){
 PrintArgs(){
   ## Print arguments for the "current" script
   ## Use: PrintArgs "$scriptName" "${posArgs[@]}"
-  local curScrName="$1"
+  local curScrName=$1
   shift 
 
   local posArgs=("$@")
@@ -709,7 +709,7 @@ mk_dir(){ #Delete.
   # Function is alias to real mkdir -p, but which proceeds an exit flag in a
   # right way.
 
-  local dirName="$1"
+  local dirName=$1
   if [[ -z $(RmSp "$dirName") ]]; then
       ErrMsg "Input is empty"
   fi

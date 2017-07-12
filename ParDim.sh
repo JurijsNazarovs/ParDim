@@ -20,7 +20,7 @@ scriptsPath="$homePath/scripts"
 funcListPath="$scriptsPath"/funcListParDim.sh
 source "$funcListPath"
 
-curScrName="${0##*/}" #delete all before last backSlash
+curScrName=${0##*/} #delete all before last backSlash
 #curScrName=${curScrName%.*} #delete extension
 downloadTaskName="Download" #several parts of the code depend on the name of
                             #a task with downloading script
@@ -52,8 +52,8 @@ if [[ "$scriptsPath" != $(RmSp "$scriptsPath") ]]; then
             Reinstall ParDim in a path without spaces."
 fi
 
-argsFile="${1:-$homePath/args.ParDim}" #file w/ all arguments for this shell
-isSubmit="${2:-true}"
+argsFile=${1:-$homePath/args.ParDim} #file w/ all arguments for this shell
+isSubmit=${2:-true}
 argsFile="$(readlink -m "$argsFile")" #whole path
 ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 ChkValArg "isSubmit" "" "false" "true"

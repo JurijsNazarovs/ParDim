@@ -43,9 +43,9 @@ printf "%-${lenStr}s %s\n"\
 EchoLineSh
 
 ## Input
-task=${1:-"Download"} #task to get summary of
-jobsDir=${2:-"tmp/jobsDir"} #the working directory for the task
-reportDir=${3:-"report"} #directory to create all report files
+task=${1:-Download} #task to get summary of
+jobsDir=${2:-tmp/jobsDir} #the working directory for the task
+reportDir=${3:-report} #directory to create all report files
 holdReason=${4:-""} #reason for holding jobs, e.g. "" - all hold jobs, "72 hrs"
 delim=${5:-,} #delimeter to use for output files
 

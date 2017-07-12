@@ -24,16 +24,16 @@ shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$homePath"/funcListParDim.sh
 
-curScrName="${0##*/}"
+curScrName=${0##*/}
 
 
 ## Input and default values
-argsFile="${1:-args.listDev}" 
-dagFile="${2:-download.dag}" #create this
-jobsDir="${3:-downTmp}" #working directory
-resPath="$4" #return here on submit server. Can be read from file if empty
-isCondor="${6:-true}" #true => script is executed in Condor(executed server)
-isSubmit="${7:-true}" #false => dry run
+argsFile=${1:-args.listDev} 
+dagFile=${2:-download.dag} #create this
+jobsDir=${3:-downTmp} #working directory
+resPath=${4} #return here on submit server. Can be read from file if empty
+isCondor=${6:-true} #true => script is executed in Condor(executed server)
+isSubmit=${7:-true} #false => dry run
 
 ChkValArg "isCondor" "" "true" "false"
 argsFile="$(readlink -m "$argsFile")" #whole path

@@ -9,15 +9,15 @@
 shopt -s nullglob #allows create an empty array
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" #cur. script locat.
 source "$homePath"/funcListParDim.sh
-curScrName="${0##*/}"
+curScrName=${0##*/}
 
-logFile="${1:-outAndErr.postScript}.err"
+logFile=${1:-outAndErr.postScript}.err
 exec > "$logFile" 2>&1 #redirect both stdOut and stdErr to a file Globally
 #exec 2> "$logFile" #redirect stdErr to a file Globally
 
 shift
 
-task="${1,,}" #${a,,} = lower case
+task=${1,,} #${a,,} = lower case
 shift
 
 UntarFiles(){
@@ -42,7 +42,7 @@ UntarFiles(){
 
 UntarFilesFromDir(){
   # Usage: UntarFilesFromDir "$dirPath"
-  local dirPath="$1"
+  local dirPath=$1
   ChkAvailToWrite "dirPath"
   local files=("$dirPath"/*.tar.gz)
   if [[ "${#files[@]}" -eq 0 ]]; then
@@ -52,8 +52,8 @@ UntarFilesFromDir(){
 }
 
 FillListOfDirs(){
-  local inpPath="$1"
-  local outfile="$2"
+  local inpPath=$1
+  local outfile=$2
   ChkEmptyArgs "outfile" "inpPath"
   #ls -d "$inpPath/"*/ > "$outfile"
   find "$inpPath/" -mindepth 1 -maxdepth 1 -type d > "$outfile"
@@ -64,8 +64,8 @@ FillListOfDirs(){
 }
 
 FillListOfContent(){
-  local inpFile="$1"
-  local outFile="$2"
+  local inpFile=$1
+  local outFile=$2
   ChkEmptyArgs "inpFile" "outFile"
   
   if [[ ! -s "$inpFile" ]] ; then

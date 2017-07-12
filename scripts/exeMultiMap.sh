@@ -28,17 +28,17 @@ shopt -s extglob #to use !
 homePath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
 source "$homePath"/funcListParDim.sh #call file with functions
 
-curScrName="${0##*/}"
+curScrName=${0##*/}
 EchoLine
 echo "[Start] $curScrName"
 
-taskScript="$1" #[R] script to create dag (dagMaker)
-argsFile="$2"  #[R] file w/ all arguments for this shell
-dagFile="${3:-tmp.dag}" #name of output splice, with dags for every directory
-resPath="$4" #resutls are written here. Should be the full path
-isCondor="${5:-false}"
-selectJobsListInfo="$6" #file with all information about directories
-selectJobsListPath="$7" #path to list of dirs to execute
+taskScript=${1} #[R] script to create dag (dagMaker)
+argsFile=${2}  #[R] file w/ all arguments for this shell
+dagFile=${3:-tmp.dag} #name of output splice, with dags for every directory
+resPath=${4} #resutls are written here. Should be the full path
+isCondor=${5:-false}
+selectJobsListInfo=${6} #file with all information about directories
+selectJobsListPath=${7} #path to list of dirs to execute
 
 
 ## Create main DAG file, which contains all DAG jobs (SPLICE) for every

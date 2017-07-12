@@ -30,10 +30,10 @@ printf "%-${lenStr}s %s\n"\
 EchoLineSh
 
 ## Input and default values
-argsFile=${1:-"$(mktemp -qu args.ParDim.XXXX)"}
+argsFile=${1:-$(mktemp -qu args.ParDim.XXXX)}
 argsFile="$(readlink -m "$argsFile")"
 shift
-isAppend=${1:-"false"}
+isAppend=${1:-false}
 ChkValArg "isAppend" "" "true" "false"
 shift
 tasks=("$@")
