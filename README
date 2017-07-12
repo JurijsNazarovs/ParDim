@@ -551,12 +551,32 @@ The Download stage provides several useful options:
     Note: names for relativeName column is not changed
   - combine several files in one output
 
-Note: the name of the stage is reserved for a built-in ParDim.sh script
+Note: the name of the stage is reserved for a built-in ParDim script
 boostDownload.sh. If you would like to use your own downloading script, you
 have to use another name of the stage, except ##[ Download ]##.
 
 ----------------------------------------
-The structure of an input table:
+*START DOWNLOADING*
+----------------------------------------
+To execute the Download stage, there should be 3 arguments in a ParDim argsFile.
+
+--------------------
+##[ Download ]##
+execute                 true
+transFiles              /path/to/table/with/urls
+args                    /path/to/argsFile/for/Download/stage
+--------------------
+
+The description of a table in "transFiles" is provided in the subsection
+*STRUCTURE OF AN INPUT TABLE* below.
+The description of a file in "args" is provided in the subsection
+*ARGUMENT FILE* below.
+
+Note: for the Download stage arguments: script, map, and relResPath are ignored.
+Note: the Download stage saves data in dataPath.
+
+----------------------------------------
+*STRUCTURE OF AN INPUT TABLE*
 ----------------------------------------
 First row of a table is considered as a header and defines names of columns.
 
@@ -585,7 +605,7 @@ where , - delimeter for a table (argument tabDelim)
       ; - delimeter to join files (argument tabDelimJoin)
 
 ----------------------------------------
-Input in a file with arguments:
+*ARGUMENT FILE*
 ----------------------------------------
  1. tabPath - path to an input table with links to files.
  2. tabDelim - delimeter used in a table.
