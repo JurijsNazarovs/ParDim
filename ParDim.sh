@@ -106,13 +106,14 @@ for i in "${taskPos[@]}"; do
   execute=false
   ReadArgs "$argsFile" 1 "$i" 1 "execute" "execute" > /dev/null
   if [[ "$execute" = true ]]; then
-      posArgs=(script map transFiles args relResPath)
       if [[ "$i" = "$downloadTaskName" ]]; then
           script="$scriptsPath/boostDownload.sh"
           map=single
+          posArgs=(transFiles args)
       else
         script=""
         map=multi #if runs for every directory
+        posArgs=(script map transFiles args relResPath)
       fi
       transFiles=""
       args="" #file with arguments (just one)
