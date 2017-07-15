@@ -8,7 +8,7 @@ In other words, if user has a script to run on condor for one directory,
 which corresponds to a specific data set or experiment, ParDim implements runs
 for multiple directories.  
 *Note:* more about script is in the section
-[Script designing for the ParDim](#Script-designing-for-the-ParDim)
+[Script designing for the ParDim](#script-designing-for-the-pardim)
 
 ParDim provides tools to manage a workflow of scripts, download and prepare data
 for runs (section [Built-in Download stage]), and a great reporting function to
