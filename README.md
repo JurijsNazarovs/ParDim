@@ -205,7 +205,7 @@ execute &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; true/false
 map &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; single/multi  
 script &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /path/to/script  
 args &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /path/to/argument/file/for/script  
-transFiles &nbsp;&nbsp;&nbsp;&nbsp; /path/to/different/files/to/transfer/using/,  
+transFiles &nbsp;&nbsp;&nbsp; /path/to/different/files/to/transfer/using/,  
 relResPath
 
 
