@@ -129,6 +129,31 @@ case "$task" in
     FillListOfDirs "$1" "$2" #1: inpDir, #2: outFile
     FillListOfContent "$2" "$3" #1: inpFile, #2: outFile
     ;;
+
+  # Fill list of dirs and create file with content
+  filllistofdirsandcontentwithreport)
+    # $1 - task for report
+    # $2 - working directory with log file
+    # $3 - root dir where results saved. Used to cat with dirnames of comp. dirs
+    # $4 - output file with directories
+    # $5 - output file with info about directories
+    dirTmp="$(mktemp -qud "ReportDirTmp.XXX")"
+    bash "$homePath/../MakeReport.sh"  "$1" "$2" "$dirTmp"
+    if [[ $? -ne 0 ]]; then
+        ErrMsg "MakeReport function failed. No output is produced."
+    fi
+
+    ChkExist "f" "$dirTmp/$1.compDirs.list" "List of completed directories"
+    # Change dirname of completed directories to temporary result directory
+    awk -v dirPath="$3" '{
+        n = split($0, splStr, "/")
+        print (dirPath "/" splStr[n])
+    }' "$dirTmp/$1.compDirs.list" > "$4"
+    
+    rm -rf "$dirTmp"
+    
+    FillListOfContent "$4" "$5" #1: inpFile, #2: outFile
+    ;;
   
   # Untar files by providing files
   untarfiles)
