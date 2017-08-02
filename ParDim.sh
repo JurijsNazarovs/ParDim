@@ -271,7 +271,7 @@ if [[ "${taskMap[0]}" != single ]]; then
                     selectJobsListPath - list of analysed directories."
         fi
    
-        selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.XXXX)"
+        selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.${task[0]}.XXXX)"
         ChkExist d "$dataPath" "dataPath: $dataPath"
         #ls -d "$dataPath/"*/ > "$selectJobsListPath"
         find "$dataPath/" -mindepth 1 -maxdepth 1 -type d \
@@ -294,7 +294,7 @@ if [[ "${taskMap[0]}" != single ]]; then
       fi
       strTmp=() #delete values for future use
     fi
-    selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.XXXX)"
+    selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.${task[0]}.XXXX)"
 fi
 # Thus, if first task is single-mapping task, then
 # selectJobsListPath and selectJobsListInfo are empty on this stage, but
@@ -475,9 +475,8 @@ lastTask="" #last executed task for PARENT CHILD dependency
 for i in "${!task[@]}"; do
   jobId="${task[$i]}"
   
-  # Prescripts
+  # Create selectJobsListInfo in case of multi task if it is first
   if [[ "${taskMap[$i]}" != single && -z $(RmSp "$lastTask") ]]; then
-      # Create selectJobsListInfo
       printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh "\
              >> "$pipeStructFile" 
       printf "$jobsDir/pre.$jobId FillListOfContent "  >> "$pipeStructFile"
@@ -485,7 +484,7 @@ for i in "${!task[@]}"; do
              >> "$pipeStructFile"
   fi
 
-  # Parent-child dependency 
+  # Parent-child dependency
   if [[ -n $(RmSp "$lastTask") ]]; then
       printf "PARENT $lastTask CHILD $jobId\n" >> "$pipeStructFile"
       PrintfLineSh >> "$pipeStructFile"
@@ -494,13 +493,28 @@ for i in "${!task[@]}"; do
           # Need to create 2 files: file with dirs and file with content of dirs
           selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.$jobId.XXXX)"
           selectJobsListInfo="$(mktemp -qu "$jobsDir/"selectJobsInfo.$jobId.XXXX)"
-          
+
+          # Detect a map of the last task
+          strTmp=$(ArrayGetInd "1" "${lastTask%Dag}" "${task[@]}")
+
+          # PRE script
           printf "SCRIPT PRE $jobId $scriptsPath/postScript.sh " \
-                 >> "$pipeStructFile" 
-          printf "$jobsDir/pre.$jobId FillListOfDirsAndContent $resPathTmp " \
                  >> "$pipeStructFile"
-          printf "$selectJobsListPath $selectJobsListInfo \n\n" \
-                 >> "$pipeStructFile"
+          
+          if [[ "${taskMap[$strTmp]}" = multi ]]; then
+              printf "$jobsDir/pre.$jobId FillListOfDirsAndContentWithReport " \
+                     >> "$pipeStructFile"
+              printf "${task[strTmp]} $jobsDir $resPathTmp " \
+                     >> "$pipeStructFile"
+              printf "$selectJobsListPath $selectJobsListInfo \n\n" \
+                     >> "$pipeStructFile"
+          else
+            printf "$jobsDir/pre.$jobId FillListOfDirsAndContent " \
+                   >> "$pipeStructFile"
+            printf "$resPathTmp $selectJobsListPath $selectJobsListInfo \n\n" \
+                   >> "$pipeStructFile"
+          fi
+          
           # resPathTmp is defined after task is executed. So, we have path for
           # results of a previous running job.
       fi
