@@ -1,12 +1,15 @@
 #!/bin/bash
 # ==============================================================================
 # makeReport.sh creates following files (lists):
+#
+# Single/Multi task
 # 1. *.queuedJobs.list - queued jobs
 # 2. *.compJobs.list - completed jobs
 # 3. *.notCompJobs.list - currently not completed jobs
 # 4. *.holJobsReason.list - holding lines given reason $holdReason
 # 5. *.holdJobs.list - jobs on hold given reason $holdReason
-# 
+#
+# Multi task
 # 6. *.summaryJobs.list - summary info about dirs
 # 7. *.notCompDirs.list - path to not completed dirs
 # 8. *.compDirs.list - path to completed dirs
@@ -35,11 +38,11 @@ EchoLineSh
 lenStr=${#curScrName}
 lenStr=$((25 + lenStr))
 printf "%-${lenStr}s %s\n"\
-        "The location of $curScrName:"\
-        "$homePath"
+       "The location of $curScrName:"\
+       "$homePath"
 printf "%-${lenStr}s %s\n"\
-        "The $curScrName is executed from:"\
-        "$PWD"
+       "The $curScrName is executed from:"\
+       "$PWD"
 EchoLineSh
 
 ## Input
@@ -106,18 +109,26 @@ taskMap="$(
               )"
 
 
-## MultiMap
+## Create temporarty files and detect log file
+tmpFile1="$reportDir/$(mktemp -uq tmp.XXXX)"
+tmpFile2="$reportDir/$(mktemp -uq tmp.XXXX)"
+
 if [[ "$taskMap" = *Multi* ]]; then
-    echo "Task $task corresponds to multi map"
-    
-    tmpFile1="$reportDir/$(mktemp -uq tmp.XXXX)"
-    tmpFile2="$reportDir/$(mktemp -uq tmp.XXXX)"
+    echo "Task $task corresponds to a multi map"
+   
     tmpFile3="$reportDir/$(mktemp -uq tmp.XXXX)"
-
     logFile="$jobsDir/multiMap/$task/$task.dag.dagman.out"
+fi
 
-    
-    ## Queued jobs
+if [[ "$taskMap" = *Single* ]]; then
+    echo "Task $task corresponds to a single map"
+
+    logFile="$jobsDir/singleMap/$task/$task.dag.dagman.out"
+fi
+
+
+## Queued jobs
+if [[ "$taskMap" = *Multi* ]]; then
     printf "Queued jobs ... "
     # File1. 2 columns: Dag#, condorJob, condorId
     less "$logFile" \
@@ -146,62 +157,77 @@ if [[ "$taskMap" = *Multi* ]]; then
     join -t "$delim" "$tmpFile3" "$tmpFile1" > "$tmpFile2"
     mv "$tmpFile2" "$queuJobsFile"
     printf "done\n"
+fi
 
-
-    ## Completed Jobs
-    printf "Completed jobs ... "
-    # Condor id of completed
+if [[ "$taskMap" = *Single* ]]; then
+    printf "Queued jobs ... "
+    # File1. 2 columns: Dag#, condorJob, condorId
     less "$logFile" \
-        | grep "completed successfully" \
-        | cut  -d " " -f 8\
-        | sort -u \
-               > "$tmpFile1"
-    # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$compJobsFile"
+        | grep "ULOG_SUBMIT"\
+        | cut -d " "  -f 9,10\
+        | sort -uk 1,1 \
+        | sed "s/[+| ]/$delim/g" \
+              > "$queuJobsFile"
+    
     printf "done\n"
+fi
 
 
-    ## Not completed jobs
-    printf "Not completed jobs ... "
-    # Substraction of compJobsFile from queuJobsFile
-    comm -13 "$compJobsFile" "$queuJobsFile" > "$notCompJobsFile"
-    printf "done\n"
+## Completed Jobs
+printf "Completed jobs ... "
+# Condor id of completed
+less "$logFile" \
+    | grep "completed successfully" \
+    | cut  -d " " -f 8\
+    | sort -u \
+           > "$tmpFile1"
+# Take info from list of queued jobs
+grep -f "$tmpFile1" "$queuJobsFile" > "$compJobsFile"
+printf "done\n"
 
 
-    ## Hold Jobs
-    printf "Hold jobs "
-    if [[ -n $(RmSp "$holdReason") ]]; then
-        printf "for reason \"$holdReason\" "
-    fi
-    printf "... "
+## Not completed jobs
+printf "Not completed jobs ... "
+# Substraction of compJobsFile from queuJobsFile
+comm -13 "$compJobsFile" "$queuJobsFile" > "$notCompJobsFile"
+printf "done\n"
 
-    # File with holding reason lines
-    PrintfLine > "$holdJobsReasFile"
-    printf "# This is a history file of all hold reasons, since\n"\
+
+## Hold Jobs
+printf "Hold jobs "
+if [[ -n $(RmSp "$holdReason") ]]; then
+    printf "for reason \"$holdReason\" "
+fi
+printf "... "
+
+# File with holding reason lines
+PrintfLine > "$holdJobsReasFile"
+printf "# This is a history file of all hold reasons, since\n"\
+       >> "$holdJobsReasFile"
+printf "# some jobs might be released and finished successfully\n"\
+       >> "$holdJobsReasFile"
+PrintfLine >> "$holdJobsReasFile"
+less "$logFile" \
+    | grep  -A 1 "Event: ULOG_JOB_HELD" \
+    | grep -B 1 "$holdReason" \
+    | grep -v -- "^--$" \
+    | grep "$holdReason" \
            >> "$holdJobsReasFile"
-    printf "# some jobs might be released and finished successfully\n"\
-           >> "$holdJobsReasFile"
-    PrintfLine >> "$holdJobsReasFile"
-    less "$logFile" \
-        | grep  -A 1 "Event: ULOG_JOB_HELD" \
-        | grep -B 1 "$holdReason" \
-        | grep -v -- "^--$" \
-        | grep "$holdReason" \
-               >> "$holdJobsReasFile"
 
-    # Condor id of holding jobs given the reason
-    tail -n +5 "$holdJobsReasFile" \
-        | cut  -d " " -f 10 \
-        | sort -u \
-               > "$tmpFile1"
-    # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$tmpFile2"
-    # Select jobs which are not among complete jobs, since a hold job might
-    # be released if issue is fixed
-    comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
-    printf "done\n"
+# Condor id of holding jobs given the reason
+tail -n +5 "$holdJobsReasFile" \
+    | cut  -d " " -f 10 \
+    | sort -u \
+           > "$tmpFile1"
+# Take info from list of queued jobs
+grep -f "$tmpFile1" "$queuJobsFile" > "$tmpFile2"
+# Select jobs which are not among complete jobs, since a hold job might
+# be released if issue is fixed
+comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
+printf "done\n"
 
-
+## Summary, completed dirs, not completed dirs
+if [[ "$taskMap" = *Multi* ]]; then
     ## Summary of jobs
     printf "Summary of jobs ... "
     # File1. 2 columns: Dag#,  experiment dir
@@ -269,86 +295,14 @@ if [[ "$taskMap" = *Multi* ]]; then
     printf "Not completed directories ... "
     grep -v -f "$compDirsFile" "$selJobsListPath" > "$notCompDirsFile"
     printf "done\n"
-
-    rm -rf "$tmpFile1" "$tmpFile2" "$tmpFile3"
 fi
 
 
-## Single map
-if [[ "$taskMap" = *Single* ]]; then
-    echo "Task $task corresponds to single map"
+rm -rf "$tmpFile1" "$tmpFile2"
 
-    tmpFile1="$reportDir/$(mktemp -uq tmp.XXXX)"
-    
-    logFile="$jobsDir/singleMap/$task/$task.dag.dagman.out"
-    ## Queued jobs
-    printf "Queued jobs ... "
-    # File1. 2 columns: Dag#, condorJob, condorId
-    less "$logFile" \
-        | grep "ULOG_SUBMIT"\
-        | cut -d " "  -f 9,10\
-        | sort -uk 1,1 \
-        | sed "s/[+| ]/$delim/g" \
-              > "$queuJobsFile"
-    
-    printf "done\n"
-
-    ## Completed Jobs
-    printf "Completed jobs ... "
-    # Condor id of completed
-    less "$logFile" \
-        | grep "completed successfully" \
-        | cut  -d " " -f 8\
-        | sort -u \
-               > "$tmpFile1"
-    # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$compJobsFile"
-    printf "done\n"
-
-
-    ## Not completed jobs
-    printf "Not completed jobs ... "
-    # Substraction of compJobsFile from queuJobsFile
-    comm -13 "$compJobsFile" "$queuJobsFile" > "$notCompJobsFile"
-    printf "done\n"
-
-    
-    ## Hold Jobs
-    printf "Hold jobs "
-    if [[ -n $(RmSp "$holdReason") ]]; then
-        printf "for reason \"$holdReason\" "
-    fi
-    printf "... "
-
-    # File with holding reason lines
-    PrintfLine > "$holdJobsReasFile"
-    printf "# This is a history file of all hold reasons, since\n"\
-           >> "$holdJobsReasFile"
-    printf "# some jobs might be released and finished successfully\n"\
-           >> "$holdJobsReasFile"
-    PrintfLine >> "$holdJobsReasFile"
-    less "$logFile" \
-        | grep  -A 1 "Event: ULOG_JOB_HELD" \
-        | grep -B 1 "$holdReason" \
-        | grep -v -- "^--$" \
-        | grep "$holdReason" \
-               >> "$holdJobsReasFile"
-
-    # Condor id of holding jobs given the reason
-    tail -n +5 "$holdJobsReasFile" \
-        | cut  -d " " -f 10 \
-        | sort -u \
-               > "$tmpFile1"
-    # Take info from list of queued jobs
-    grep -f "$tmpFile1" "$queuJobsFile" > "$tmpFile2"
-    # Select jobs which are not among complete jobs, since a hold job might
-    # be released if issue is fixed
-    comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
-    printf "done\n"
-
-    rm -rf "$tmpFile1" "$tmpFile2"
+if [[ "$taskMap" = *Multi* ]]; then
+    rm -rf "$tmpFile3"
 fi
-
 
 EchoLineSh
 echo "[End]   $curScrName"
