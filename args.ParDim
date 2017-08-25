@@ -1,13 +1,13 @@
 ##[ ParDim.sh ]##
-dataPath                /home/nazarovs/projects/tmp/dataBam
-resPath                 /home/nazarovs/projects/tmp/resultsBamBeta
-jobsDir		        /home/nazarovs/projects/tmp/testBamBeta
+dataPath               	/home/nazarovs/data/ENCODE_test
+resPath                 /home/nazarovs/results/ENCODE_test2
+jobsDir		        /home/nazarovs/projects/tmp/ENCODE_test
 selectJobsListPath      
 
 ##[ Download ]##
 execute                 false
-transFiles              /home/nazarovs/projects/ParDim/tmp/perm.csv
-args                    /home/nazarovs/projects/ParDim/Download.args
+transFiles              /home/nazarovs/projects/tmp/perm.csv
+args                    /home/nazarovs/projects/ParDim/args.Download
 
 ##[ makeTrimDag ]##
 execute                 false
@@ -16,7 +16,7 @@ transFiles              funcList.sh, makeCon.sh
 args                    /home/nazarovs/projects/ChIP_ParDim/args.ChIP.allStages
 
 ##[ makeToTagDag ]##
-execute                 true
+execute                 false
 script                  /home/nazarovs/projects/ChIP_ParDim/ParDimLibs/makeToTagDag.sh
 transFiles              funcList.sh, makeCon.sh
 args                    /home/nazarovs/projects/ChIP_ParDim/args.ChIP.allStages
@@ -26,7 +26,7 @@ execute                 true
 script                  /home/nazarovs/projects/ChIP_ParDim/ParDimLibs/makeIsCtlPoolDag.sh
 transFiles              funcList.sh, makeCon.sh
 args                    /home/nazarovs/projects/ChIP_ParDim/args.ChIP.allStages
-relResPath              makeToTagDag
+relResPath              dataPath
 
 ##[ makeAquasDag ]##
 execute                 true

@@ -89,6 +89,10 @@ selectJobListPath is empty in case of pipeline = just Download
 [-] in ToTag exe do not save bam and bam.bai files. They take too much space
 [-]in README download, readargs, printargs
 [+] support of not installed files in ChipseqParDim ot put on hold
+[-] Write a script to parse log files to see if Memory, Ram allocation
+[-] Difference between finished jobs and still running jobs in MakeReport time detection.
+    If still running, then add # in the end of the dateTimeString, to differentiate
+    between finished and not jobs
 
 
 "Be carefull because now JoinToStr leaves spaces between commas. It is necessary
