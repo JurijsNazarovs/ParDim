@@ -279,7 +279,7 @@ if [[ "$taskMap" = *Multi* ]]; then
               )"
 
     # Completed dirs
-    # if nCompJobs != nQueJobs => print dir 
+    # if nCompJobs == nQueJobs => print dir 
     printf "Completed directories ... "
     awk -v FS="$delim" -v OFS="$delim"\
         '{
