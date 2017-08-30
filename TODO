@@ -7,7 +7,7 @@
     same folder + same relative file _ origName=false.
 [+] rewrite MakeCon.sh file, using more options including cores for makeAquasDag.sh
     Condor accept transFiles using comma only.
-[-] make a specific error from BDS if there is a segmentation fault. Then I can
+[+] make a specific error from BDS if there is a segmentation fault. Then I can
     put constraint on_exit in condor file, so that it is repeated untill there
     is another error.
 [+] fix errMsg, so that I can input it even if > /dev/null
