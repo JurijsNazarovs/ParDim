@@ -162,6 +162,7 @@ if [[ "$taskMap" = *Single* ]]; then
 fi
 echo
 
+
 ## Detect running time
 printf "" > "$timeFile"
 printf "Timing of jobs ... "
