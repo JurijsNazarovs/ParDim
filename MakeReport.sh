@@ -31,6 +31,20 @@ source "$scriptsPath"/funcListParDim.sh
 
 curScrName=${0##*/} #delete all before last backSlash
 
+TimeFromSeconds()
+{
+  local T=$1
+  local D=$((T/60/60/24))
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  (( $D > 0 )) && printf '%d days ' $D
+  (( $H > 0 )) && printf '%d hours ' $H
+  (( $M > 0 )) && printf '%d minutes ' $M
+  (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
+  printf '%d seconds\n' $S
+}
+
 EchoLineBold
 echo "[Start] $curScrName"
 
@@ -67,6 +81,7 @@ holdJobsReasFile="$reportDir/$task.holdJobsReas.list"
 sumDirsFile="$reportDir/$task.summaryDirs.list"
 notCompDirsFile="$reportDir/$task.notCompDirs.list"
 compDirsFile="$reportDir/$task.compDirs.list"
+timeFile="$reportDir/$task.time.list"
 
 PrintArgs "$curScrName" "task" "jobsDir"  "reportDir" "holdReason"
 
@@ -76,20 +91,40 @@ ChkExist "f" "$mainPipelineFile" "Main pipeline info file: $mainPipelineFile \n"
 
 ## Detect the string for submitting node with all argumets
 awkPattern="submitting: .* -a dag_node_name' '=' '$task -a \\\+DAGManJobId"
-submitStr="$(
+readarray -t submitStr <<< "$(
   awk -v pattern="$awkPattern"\
       '{
         if ($0 ~ pattern){
            print($0)
-           exit
+           #exit
            }
        }' "$mainPipelineFile"
          )"
+if [[ "${#submitStr[@]}" -gt 1 ]]; then
+    ErrMsg "Impossible to detect information about task $task.
+            History file: $mainPipelineFile
+            contains information about starting the $task
+            more then once."
+fi
 
-if [[ -z $(RmSp "${submitStr}") ]]; then
+if [[ "$submitStr" != *exeMap* || -z $(RmSp "${submitStr}") ]]; then
+    awkPattern="submitting: .* -a dag_node_name' '=' '.* -a \\\+DAGManJobId.* exeMap.*"
+    readarray -t submitStr <<< "$(
+    awk -v pattern="$awkPattern"\
+        -F "\047"\
+      '{
+        if ($0 ~ pattern){
+           task = gensub(/(.+) -a .*/, "\\1", "", $5)
+           print task
+           }
+       }' "$mainPipelineFile"\
+       | sort | uniq )"
+    submitStr=("\n - $(JoinToStr "\n - " "${submitStr[@]}")")
+    
     ErrMsg "Task $task has no story of execution
            in the directory $jobsDir.
-           History file: $mainPipelineFile"
+           History file: $mainPipelineFile
+           Possibly searching tasks: ${submitStr[*]}"
 fi
 mkdir -p "$reportDir"
 
@@ -125,6 +160,64 @@ if [[ "$taskMap" = *Single* ]]; then
 
     logFile="$jobsDir/singleMap/$task/$task.dag.dagman.out"
 fi
+echo
+
+## Detect running time
+printf "" > "$timeFile"
+printf "Timing of jobs ... "
+for i in "" "Dag"; do  #endings for pattern: 1-construct dag, 2-execute dag
+  taskName="$task$i"
+  
+  taskFirstStr="$(
+    awk -v pattern="$Submitting HTCondor Node $taskName"\
+        '{
+        if ($0 ~ pattern){
+           print($0)
+           exit
+           }
+       }' "$mainPipelineFile"
+              )"
+  timeStart="$(cut -d " " -f 1,2 <<< "$taskFirstStr")" #date and time
+
+  taskLastStr="$(
+    awk -v pattern="Node $taskName job completed"\
+        '{
+          if ($0 ~ pattern){
+             print($0)
+             isJobCompleted=1
+             exit
+         }
+        } 
+       
+       END{
+        if (!isJobCompleted){
+           print $0 "!!"
+        }
+       }' "$mainPipelineFile"
+            )"
+  isJobComleted=true
+  if [[ "$taskLastStr" = *!! ]]; then
+      isJobComleted=false
+  fi
+
+  timeEnd="$(cut -d " " -f 1,2 <<< "$taskLastStr")" #date and time
+  timeDif="$(( $(date -ud "$timeEnd" +'%s') - $(date -ud "$timeStart" +'%s') ))"
+
+  # Print resutls
+  PrintfLine >> "$timeFile"
+  if [[ "$i" == "" ]]; then
+      printf "# Construct dag for the task: $task\n" >> "$timeFile"
+  else
+    printf "# Execute dag constructed by the task: $task\n" >> "$timeFile"
+  fi
+  PrintfLine >> "$timeFile"
+  printf "Start: $timeStart\n" >> "$timeFile"
+  if [[ "$isJobComleted" = true ]]; then
+      printf "End:   $timeEnd\n" >> "$timeFile"
+  fi
+  printf "Run:   $(TimeFromSeconds "$timeDif")\n" >> "$timeFile"
+done
+printf "done\n"
 
 
 ## Queued jobs
