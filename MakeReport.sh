@@ -8,11 +8,12 @@
 # 3. *.notCompJobs.list - currently not completed jobs
 # 4. *.holJobsReason.list - holding lines given reason $holdReason
 # 5. *.holdJobs.list - jobs on hold given reason $holdReason
+# 6. *.time.list - time to construct and execute dag
 #
 # Multi task
-# 6. *.summaryJobs.list - summary info about dirs
-# 7. *.notCompDirs.list - path to not completed dirs
-# 8. *.compDirs.list - path to completed dirs
+# 7. *.summaryJobs.list - summary info about dirs
+# 8. *.notCompDirs.list - path to not completed dirs
+# 9. *.compDirs.list - path to completed dirs
 #
 # holdReason="" - all hold jobs
 #
