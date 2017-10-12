@@ -30,7 +30,7 @@ UntarFiles(){
     ChkExist f "$file" "File to untar: $file"
     outPath="$(dirname "$file")"
     
-    tar -xzf "$file" -C "$outPath"
+    tar --no-overwrite-dir -xzf "$file" -C "$outPath"
     exFl=$?
     if [[ "$exFl" -ne 0 ]]; then
         ErrMsg "$file cannot be unzip" "$exFl"
