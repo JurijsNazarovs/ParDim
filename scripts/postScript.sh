@@ -79,14 +79,26 @@ FillListOfContent(){
         continue
     fi
 
+    # ChkExist d "$dirPath" "Directory"
+    # ls -lR "$dirPath" |
+    #     awk\
+    # '{
+    #     if ($0 ~ "total.*") {next}
+    #     if (NF > 2) {print $9 "\t" $5}
+    #     if (NF == 1) {print}
+    #  }' >> "$outFile"
+
     ChkExist d "$dirPath" "Directory"
     ls -lR "$dirPath" |
         awk\
     '{
         if ($0 ~ "total.*") {next}
-        if (NF > 2) {print $9 "\t" $5}
+        if (NF == 11) {print $11 "\t" $5; next} #in case of link
+        if (NF == 9) {print $9 "\t" $5; next}
         if (NF == 1) {print}
      }' >> "$outFile"
+
+    
   done < "$inpFile"
 
   if [[ ! -s "$outFile" ]] ; then
