@@ -151,7 +151,7 @@ tmpFile2="$reportDir/$(mktemp -uq tmp.XXXX)"
 
 if [[ "$taskMap" = *Multi* ]]; then
     echo "Task $task corresponds to a multi map"
-   
+    
     tmpFile3="$reportDir/$(mktemp -uq tmp.XXXX)"
     logFile="$jobsDir/multiMap/$task/$task.dag.dagman.out"
 fi
@@ -167,11 +167,26 @@ echo
 ## Detect running time
 printf "" > "$timeFile"
 printf "Timing of jobs ... "
-for i in "" "Dag"; do  #endings for pattern: 1-construct dag, 2-execute dag
-  taskName="$task$i"
-  
-  taskFirstStr="$(
-    awk -v pattern="$Submitting HTCondor Node $taskName"\
+
+for taskType in "constr" "exe"; do
+  case "$taskType" in
+    "constr")
+      taskName="$task";;
+    "exe")
+      taskName="${task}Dag";;
+  esac
+
+  for i in "PRE" "$taskType" "POST"; do
+    # First appearance of the task
+    case "$i" in
+      "exe" | "constr")
+        pattern="Submitting HTCondor Node $taskName";;
+      "PRE" | "POST")
+        pattern="Running $i script of Node $taskName";;
+    esac
+    
+    taskFirstStr="$(
+    awk -v pattern="$pattern"\
         '{
         if ($0 ~ pattern){
            print($0)
@@ -179,10 +194,21 @@ for i in "" "Dag"; do  #endings for pattern: 1-construct dag, 2-execute dag
            }
        }' "$mainPipelineFile"
               )"
-  timeStart="$(cut -d " " -f 1,2 <<< "$taskFirstStr")" #date and time
+    timeStart="$(cut -d " " -f 1,2 <<< "$taskFirstStr")" #date and time
+    if [[ -z $(RmSp "$timeStart") ]]; then
+        continue
+    fi
 
-  taskLastStr="$(
-    awk -v pattern="Node $taskName job completed"\
+    # Last appearance of the task
+    case "$i" in
+      "exe" | "constr")
+        pattern="Node $taskName job completed";;
+      "PRE" | "POST")
+        pattern="$i Script of node $taskName completed successfully";;
+    esac
+    
+    taskLastStr="$(
+    awk -v pattern="$pattern"\
         '{
           if ($0 ~ pattern){
              print($0)
@@ -197,27 +223,32 @@ for i in "" "Dag"; do  #endings for pattern: 1-construct dag, 2-execute dag
         }
        }' "$mainPipelineFile"
             )"
-  isJobComleted=true
-  if [[ "$taskLastStr" = *!! ]]; then
-      isJobComleted=false
-  fi
+    isJobComleted=true
+    if [[ "$taskLastStr" = *!! ]]; then
+        isJobComleted=false
+    fi
 
-  timeEnd="$(cut -d " " -f 1,2 <<< "$taskLastStr")" #date and time
-  timeDif="$(( $(date -ud "$timeEnd" +'%s') - $(date -ud "$timeStart" +'%s') ))"
+    timeEnd="$(cut -d " " -f 1,2 <<< "$taskLastStr")" #date and time
+    timeDif="$(( $(date -ud "$timeEnd" +'%s') - $(date -ud "$timeStart" +'%s') ))"
 
-  # Print resutls
-  PrintfLine >> "$timeFile"
-  if [[ "$i" == "" ]]; then
-      printf "# Construct dag for the task: $task\n" >> "$timeFile"
-  else
-    printf "# Execute dag constructed by the task: $task\n" >> "$timeFile"
-  fi
-  PrintfLine >> "$timeFile"
-  printf "Start: $timeStart\n" >> "$timeFile"
-  if [[ "$isJobComleted" = true ]]; then
-      printf "End:   $timeEnd\n" >> "$timeFile"
-  fi
-  printf "Run:   $(TimeFromSeconds "$timeDif")\n" >> "$timeFile"
+    # Print resutls
+    PrintfLine >> "$timeFile"
+    case "$i" in
+      "constr")
+        printf "# Construct dag for the task: $task\n" >> "$timeFile";;
+      "exe")
+        printf "# Execute dag constructed by the task: $task\n" >> "$timeFile";;
+      "PRE" | "POST")
+        printf "# $i script for the task: $taskType $task\n" >> "$timeFile";;
+    esac
+    
+    PrintfLine >> "$timeFile"
+    printf "Start: $timeStart\n" >> "$timeFile"
+    if [[ "$isJobComleted" = true ]]; then
+        printf "End:   $timeEnd\n" >> "$timeFile"
+    fi
+    printf "Run:   $(TimeFromSeconds "$timeDif")\n" >> "$timeFile"
+  done
 done
 printf "done\n"
 
