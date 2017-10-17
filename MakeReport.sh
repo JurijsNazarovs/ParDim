@@ -260,7 +260,7 @@ if [[ "$taskMap" = *Single* ]]; then
     less "$logFile" \
         | grep "ULOG_SUBMIT"\
         | cut -d " "  -f 9,10\
-        | sort -uk 1,1 \
+        | sort -u \
         | sed "s/[+| ]/$delim/g" \
               > "$queuJobsFile"
     
