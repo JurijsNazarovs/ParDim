@@ -42,7 +42,8 @@ ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 # Read arguments from the $argsFile, given default values
 posArgs=("tabPath" "exePath"
          "tabDelim" "tabDelimJoin" "tabDirCol"
-         "tabRelNameCol" "tabIsSize" "nDotsExt")
+         "tabIsOrigName" "tabRelNameCol" "tabIsSize" "nDotsExt"
+         "isCreateLinks")
 
 tabPath=""		#[R] path for table
 exePath="$homePath/exeDownload.sh"
@@ -54,6 +55,7 @@ tabIsOrigName="false"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="false"       #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
+isCreateLinks="true"    # create links instead of real files
 
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
@@ -318,17 +320,26 @@ if [[ "$?" -ne 0 ]]; then
     ErrMsg "Cannot create a condor file: $conFile" "$?"
 fi
 
-iter=1 #number of downloading files				
+nZeros=$(awk 'END{print(NR)}' < "$tabOut") #to create jobId with leading zeros
+nZeros=${#nZeros}
+iter=1 #number of downloading files
 printf "" > "$dagFile"
 while IFS='' read -r line || [[ -n "$line" ]]; do
   readarray -t line <<< "$(echo "$line" | tr "$tabDelim" "\n")"
-  downSize=$((line[0]/1024/1024/1024 + 1)) #in Gb and rounded
+  if [[ "$isCreateLinks" = true ]]; then
+      downSize=$((2*(line[0]/1024/1024/1024 + 1))) #in Gb, rounded + tarSize
+  else
+    numCopies=$((${#line[@]} - 2))
+    downSize=$((2*numCopies(line[0]/1024/1024/1024 + 1))) #in GB
+  fi
+  
   link="${line[1]}"
   path="$(JoinToStr "$tabDelim" "${line[@]:2}")"
   # Create arguments string
   args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin"\
-                    "\$(transOut)")"
-  jobId="download$iter"
+                    "\$(transOut)" "$isCreateLinks" "false")"
+  #jobId="download$iter"
+  jobId="$(printf "download%0${nZeros}d" "$((iter))")" 
   printf "JOB  $jobId $conFile\n" >> "$dagFile"
   
   printf "VARS $jobId args=\"$args\"\n" >> "$dagFile"

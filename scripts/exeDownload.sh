@@ -7,13 +7,10 @@
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
 
-CleanOutput() {
-  local dirTmp="$1"
-  local outTar="$2"
-  
-  mv !("$dirTmp") "$dirTmp"
-  mv "$dirTmp"/_condor_std* ./
-  mv "$dirTmp/$outTar" ./
+CreateErrFile() {
+  local curDir="$1"
+  mkdir -p "$curDir"
+  touch "$curDir/RemoveDirFromList"
 }
 
 
@@ -23,7 +20,8 @@ path=${2:-./}
 delim=${3:-,} #use to split path
 delimJoin=${4:-;} #use to split link
 outTar=${5} #tarFile to return back on submit machine
-isDry=${6:-false}
+isCreateLinks=${6:-true} #create links or not
+isDry=${7:-true}
 
 
 ## Initial preparation
@@ -36,44 +34,62 @@ dirTmp=$(mktemp -dq tmpXXXX) #create tmp folder to tar everything inside later
 ## Downloading file
 wget "${link[@]}"
 exFl=$?
-if [ "$exFl" -ne 0 ]; then
+
+if [[ "$exFl" -ne 0 ]]; then
     echo "Downloading was not successful! Error code: $exFl"
-    exit $exFl
-fi
-
-
-## Create single or joined temporary file
-fileTmp=$(mktemp -uq downloadedFileTmpXXXX) #create tmp file to join other files
-if [[ ${#link[@]} -eq 1 ]]; then
-    mv ${link##*/} "$fileTmp"
+    for i in "${!path[@]}"; do
+      filePath="$dirTmp/${path[$i]}"
+      curDir="${filePath%/*}"
+      CreateErrFile "$curDir"
+    done
 else
-  cat "${link[@]##*/}" > "$fileTmp" #join several files in one
-  exFl=$? #exit value of coping
-  if [[ "$exFl" -ne 0 ]]; then
-      echo "Joining files was not successful! Error code: $exFl"
-      CleanOutput "$dirTmp" "$outTar"
-      exit $exFl
-  fi
-  rm -rf "${link[@]##*/}"
-fi
- 
-
-## Copy file in a right directory
-for filePath in "${path[@]}"; do
-  curDir="${filePath%/*}"
-  mkdir -p "$curDir" #directory for downloaded file
-  cp "$fileTmp" "$filePath"
-  
-  exFl=$? #exit value of coping
-  if [[ "$exFl" -ne 0 ]]; then
-      echo "Coping was not successful! Error code: $exFl"
-      CleanOutput "$dirTmp" "$outTar"
-      exit $exFl
+  ## Create single or joined temporary file
+  fileTmp=$(mktemp -uq downloadedFileTmpXXXX) #create tmp file to join other files
+  if [[ ${#link[@]} -eq 1 ]]; then
+      mv ${link##*/} "$fileTmp"
   else
-    echo "Success! Check file: $filePath"
-    mv "$curDir" "$dirTmp"
+    cat "${link[@]##*/}" > "$fileTmp" #join several files in one
+    exFl=$? #exit value of joining
+    if [[ "$exFl" -ne 0 ]]; then
+        echo "Joining files was not successful! Error code: $exFl"
+        for i in "${!path[@]}"; do
+          filePath="$dirTmp/${path[$i]}"
+          curDir="${filePath%/*}"
+          CreateErrFile "$curDir"
+        done
+    fi
+    rm -rf "${link[@]##*/}"
   fi
-done
+  
+
+  ## Copy file in a right directory
+  for i in "${!path[@]}"; do
+    filePath="$dirTmp/${path[$i]}"
+    curDir="${filePath%/*}"
+    mkdir -p "$curDir" #directory for downloaded file
+    if [[ $i -eq 0 ]]; then
+        mv "$fileTmp" "$filePath"
+        exFl=$? #exit value of coping
+        origFile="$filePath"
+    else
+      if [[ "$isCreateLinks" = true ]]; then
+          numDots=$(($(grep -o "/" <<< "$curDir" | wc -l)))
+          ln -s `printf "%0.s../" $(seq 1 $numDots)`"${origFile#*/}" "$filePath"
+          #without dirTmp, since I tar inside of dirTmp
+      else
+        cp "$origFile" "$filePath"
+      fi
+      exFl=$? #exit value of coping
+    fi
+
+    if [[ "$exFl" -ne 0 ]]; then
+        echo "Coping was not successful! Error code: $exFl"
+        CreateErrFile "$curDir"
+    else
+      echo "Success! Check file: $filePath"
+    fi
+  done
+fi
 
 
 ## Prepare tar to move results back
@@ -81,14 +97,16 @@ env GZIP=-9 tar -czf "$outTar" -C "$dirTmp" . #to compress with max level
 exFl=$?
 if [[ "$exFl" -ne 0 ]]; then
     echo "Creating tar was not successful! Error code: $exFl"
-    CleanOutput "$dirTmp" "$outTar"
-    exit $exFl
 fi
 
 if [[ "$isDry" = false ]]; then
     echo "Final step: moving files in $outTar"
-    CleanOutput "$dirTmp" "$outTar"
+    mv !("$dirTmp") "$dirTmp"
+    mv "$dirTmp"/_condor_std* ./
+    if [[ "$exFl" -eq 0 ]]; then
+        mv "$dirTmp/$outTar" ./
+    fi
 fi
 
-exit 0
+exit "$exFl"
 
