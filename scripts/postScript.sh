@@ -87,8 +87,9 @@ FillListOfContent(){
             -v dirPath="$dirPath/"\
             '{
         if ($0 ~ "total.*") {next}
+        # In case of soft link
         if (NF == 11) {"ls -l " dirPath$11 " | cut -d \" \" -f 5"| getline size;
-                       print($11 "\t" size "\t" "s"); next} #in case of soft link
+                       print($11 "\t" size "\t" "s" "\t" $9); next}
         if (NF == 9) {print $9 "\t" $5; next}
         if (NF == 1) {print}
      }' >> "$outFile"
