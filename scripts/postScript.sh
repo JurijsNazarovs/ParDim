@@ -56,7 +56,9 @@ FillListOfDirs(){
   local outfile=$2
   ChkEmptyArgs "outfile" "inpPath"
   #ls -d "$inpPath/"*/ > "$outfile"
-  find "$inpPath/" -mindepth 1 -maxdepth 1 -type d > "$outfile"
+  find "$inpPath/" -mindepth 1 -maxdepth 1 -type d\
+       '!' -exec test -e "{}/RemoveDirFromList" ';' -print\
+       > "$outfile" # do not consider dirs with RemoveDirFromList file
   if [[ "$?" -ne 0 ]]; then
       ErrMsg "Something went wrong with filling the list $outfile.
                Error: $?" "$?"
@@ -69,7 +71,7 @@ FillListOfContent(){
   ChkEmptyArgs "inpFile" "outFile"
   
   if [[ ! -s "$inpFile" ]] ; then
-      ErrMsg "The file with directories is empty"
+      ErrMsg "The file with list of directories is empty"
   fi
 
   printf ""  > "$outFile"
@@ -79,25 +81,17 @@ FillListOfContent(){
         continue
     fi
 
-    # ChkExist d "$dirPath" "Directory"
-    # ls -lR "$dirPath" |
-    #     awk\
-    # '{
-    #     if ($0 ~ "total.*") {next}
-    #     if (NF > 2) {print $9 "\t" $5}
-    #     if (NF == 1) {print}
-    #  }' >> "$outFile"
-
     ChkExist d "$dirPath" "Directory"
     ls -lR "$dirPath" |
         awk\
-    '{
+            -v dirPath="$dirPath/"\
+            '{
         if ($0 ~ "total.*") {next}
-        if (NF == 11) {print $11 "\t" $5; next} #in case of link
+        if (NF == 11) {"ls -l " dirPath$11 " | cut -d \" \" -f 5"| getline size;
+                       print($11 "\t" size "\t" "s"); next} #in case of soft link
         if (NF == 9) {print $9 "\t" $5; next}
         if (NF == 1) {print}
      }' >> "$outFile"
-
     
   done < "$inpFile"
 
@@ -114,11 +108,11 @@ EchoLineSh
 lenStr=${#curScrName}
 lenStr=$((25 + lenStr))
 printf "%-${lenStr}s %s\n"\
-        "The location of $curScrName:"\
-        "$homePath"
+       "The location of $curScrName:"\
+       "$homePath"
 printf "%-${lenStr}s %s\n"\
-        "The $curScrName is executed from:"\
-        "$PWD"
+       "The $curScrName is executed from:"\
+       "$PWD"
 
 EchoLineSh
 echo "Task is $task"
