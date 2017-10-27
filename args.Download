@@ -6,4 +6,6 @@ tabIsOrigName           true
 tabIsSize               false
 nDotsExt                1
 resPath                 /tmp/hui
-jobsDir                 downTmp 
+jobsDir                 downTmp
+isCreateLinks		true 
+isZipRes		false
