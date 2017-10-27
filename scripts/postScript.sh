@@ -29,14 +29,15 @@ UntarFiles(){
   for file in "${files[@]}"; do
     ChkExist f "$file" "File to untar: $file"
     outPath="$(dirname "$file")"
-    
-    tar --no-overwrite-dir -xzf "$file" -C "$outPath"
-    exFl=$?
-    if [[ "$exFl" -ne 0 ]]; then
-        ErrMsg "$file cannot be unzip" "$exFl"
-    else
-      rm -rf "$file"
+    tar --no-overwrite-dir -xzf "$file" -C "$outPath" #try unzip first
+    if [[ $? -ne 0 ]]; then
+        echo "Cannot unzip $file. Trying to untar"
+        tar --no-overwrite-dir -xf "$file" -C "$outPath" #try just untar
+        if [[ "$exFl" -ne 0 ]]; then
+            ErrMsg "$file cannot be untar with zip and not zip options" "$exFl"
+        fi
     fi
+    rm -rf "$file"
   done
 }
 
@@ -44,9 +45,9 @@ UntarFilesFromDir(){
   # Usage: UntarFilesFromDir "$dirPath"
   local dirPath=$1
   ChkAvailToWrite "dirPath"
-  local files=("$dirPath"/*.tar.gz)
+  local files=("$dirPath"/*{.tar.gz,.tar})
   if [[ "${#files[@]}" -eq 0 ]]; then
-      ErrMsg "No .tar.gz files in $dirPath"
+      ErrMsg "No .tar or .tar.gz files in $dirPath"
   fi
   UntarFiles "${files[@]}"
 }
