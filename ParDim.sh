@@ -274,8 +274,11 @@ if [[ "${taskMap[0]}" != single ]]; then
         selectJobsListPath="$(mktemp -qu "$jobsDir/"selectJobsList.${task[0]}.XXXX)"
         ChkExist d "$dataPath" "dataPath: $dataPath"
         #ls -d "$dataPath/"*/ > "$selectJobsListPath"
-        find "$dataPath/" -mindepth 1 -maxdepth 1 -type d \
-             > "$selectJobsListPath"
+        bash "$scriptsPath"/postScript.sh "$jobsDir/FillListOrDirs"\
+             "FillListOfDirs" "$dataPath" "$selectJobsListPath"
+        if [[ $? -ne 0 ]]; then
+            ErrMsg "ParDim was not able to create $selectJobsListPath"
+        fi
     else
       ChkExist f "$selectJobsListPath"\
                "List of selected directories: $selectJobsListPath"
