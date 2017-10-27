@@ -21,7 +21,8 @@ delim=${3:-,} #use to split path
 delimJoin=${4:-;} #use to split link
 outTar=${5} #tarFile to return back on submit machine
 isCreateLinks=${6:-true} #create links or not
-isDry=${7:-true}
+isZipRes=${7:-true} #zip results
+isDry=${8:-true}
 
 
 ## Initial preparation
@@ -93,7 +94,12 @@ fi
 
 
 ## Prepare tar to move results back
-env GZIP=-9 tar -czf "$outTar" -C "$dirTmp" . #to compress with max level
+if [[ "$isZipRes" = true ]]; then
+    env GZIP=-9 tar -czf "$outTar" -C "$dirTmp" . #to compress with max level
+else
+  tar -cf "$outTar" -C "$dirTmp" .
+fi
+
 exFl=$?
 if [[ "$exFl" -ne 0 ]]; then
     echo "Creating tar was not successful! Error code: $exFl"

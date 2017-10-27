@@ -43,7 +43,7 @@ ChkExist f "$argsFile" "File with arguments for $curScrName: $argsFile\n"
 posArgs=("tabPath" "exePath"
          "tabDelim" "tabDelimJoin" "tabDirCol"
          "tabIsOrigName" "tabRelNameCol" "tabIsSize" "nDotsExt"
-         "isCreateLinks")
+         "isCreateLinks" "isZipRes")
 
 tabPath=""		#[R] path for table
 exePath="$homePath/exeDownload.sh"
@@ -55,7 +55,8 @@ tabIsOrigName="false"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="false"       #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
-isCreateLinks="true"    # create links instead of real files
+isCreateLinks="true"    #create links instead of real files
+isZipRes="true"         #zip results for transfering
 
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
@@ -337,14 +338,18 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   path="$(JoinToStr "$tabDelim" "${line[@]:2}")"
   # Create arguments string
   args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin"\
-                    "\$(transOut)" "$isCreateLinks" "false")"
+                    "\$(transOut)" "$isCreateLinks" "isZipRes" "false")"
   #jobId="download$iter"
   jobId="$(printf "download%0${nZeros}d" "$((iter))")" 
   printf "JOB  $jobId $conFile\n" >> "$dagFile"
   
   printf "VARS $jobId args=\"$args\"\n" >> "$dagFile"
   printf "VARS $jobId downSize=\"$downSize\"\n" >> "$dagFile"
-  printf "VARS $jobId transOut=\"$jobId.tar.gz\"\n" >> "$dagFile"
+  if [[ "$isZipRes" = true ]]; then
+      printf "VARS $jobId transOut=\"$jobId.tar.gz\"\n" >> "$dagFile"
+  else
+    printf "VARS $jobId transOut=\"$jobId.tar\"\n" >> "$dagFile"
+  fi
   printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\
          >> "$dagFile"
   printf "\n" >> "$dagFile"
