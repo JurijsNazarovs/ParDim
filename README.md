@@ -437,6 +437,7 @@ Following arguments are provided for a multi-mapping DagMaker script by ParDim:
 
   Following arguments are provided to a DagMaker just to pass them further in an
   execution file.
+
   6. resDir - directory to save results, equals to a name of analysed directory.
   DagMaker has to pass a value of this variable exactly, without taking the full
   path or any other manipulations and should be used same way in an execution
@@ -482,7 +483,7 @@ fileName1  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
 s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
 ....  
 fileNameN  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
-s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
+s &nbsp;&nbsp;&nbsp;&nbsp; linkNameN  
 
 --------------------------------------------------------------------------------
 
