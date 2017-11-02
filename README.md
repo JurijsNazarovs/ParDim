@@ -1,7 +1,7 @@
 # Introduction
 ParDim - software, which provides the framework (front end) for a simple
 procedure of creating pipeline by integrating different stages and paralleling
-the execution for a number of analyzed directories, based on HTCondor
+the execution for a number of analysed directories, based on HTCondor
 environment.
 
 In other words, if user has a script to run on condor for one directory,
@@ -40,7 +40,11 @@ execute &nbsp;&nbsp;&nbsp;&nbsp; true
 
 ParDim provides all necessary information about a previous stage of a pipeline
 to a next stage using text files. It controls that results of a stage are
-transferred in a right directory in an organized way (according to a stage name).
+transferred in a right directory in an organised way (according to a stage name).
+
+An important feature is that ParDim sends result of successfully analysed directories
+to a next stage for an analysis and keep records of unsuccessful directories for
+every stage of a pipeline.
 
 
 # ParDim installation and execution
@@ -51,7 +55,7 @@ transferred in a right directory in an organized way (according to a stage name)
    ``` bash
    cd "/path/to/softwareDirectory"
    ```
-2. Download the current version of the ParDim from the GitHub repository:
+   2. Download the current version of the ParDim from the GitHub repository:
    ``` bash
    git clone git@github.com:JurijsNazarovs/ParDim.git
    ```
@@ -82,7 +86,7 @@ ParDim.sh "argsFile" "isSubmit", where:
    *Note:* default value is args.ParDim in a root directory of ParDim.sh
 2. isSubmit  - a variable with values true/false.
    If value is false, then everything is prepared to run the pipeline, but
-   does not run, to test the structure to make sure everything is ok.
+   does not run, to test the structure to make sure everything is OK.
 
    *Note:* default value is true, which means run the whole pipeline.
 
@@ -117,7 +121,9 @@ below.
 MakeReport.sh is executed as:  
 MakeReport.sh "stageName" "jobsDir" "reportDir" "holdReason" "delim", where:
 
-1. stageName - name of a stage of which to get summary.
+1. stageName - name of a stage of which to get summary. If it is empty, then
+               report for all stages is created automatically.  
+               Default is empty.
 2. jobsDir - the working directory for the task, specified in ParDim.
 3. reportDir - directory to create all report files.  
                Default is report.
@@ -126,16 +132,17 @@ MakeReport.sh "stageName" "jobsDir" "reportDir" "holdReason" "delim", where:
 5. delim - delimiter to use for output files.  
            Default is , .
 
-Output of MakeReport.sh is 8 files for multi-mapping scripts (1-8) and
-5 files for single-mapping scripts (1-5):
-1. *.queuedJobs.list - queued jobs
-2. *.compJobs.list - completed jobs
-3. *.notCompJobs.list - currently not completed jobs
-4. *.holJobsReason.list - holding lines given reason $holdReason
-5. *.holdJobs.list - jobs on hold given reason $holdReason
-6. *.summaryJobs.list - summary info about directories
-7. *.notCompDirs.list - path to not completed directories
-8. *.compDirs.list - path to completed directories
+Output of MakeReport.sh is 9 files for multi-mapping scripts (1-9) and
+6 files for single-mapping scripts (1-6):
+1. *.time.list - timing relative to a specific stage
+2. *.queuedJobs.list - queued jobs
+3. *.compJobs.list - completed jobs
+4. *.notCompJobs.list - currently not completed jobs
+5. *.holJobsReason.list - holding lines given reason $holdReason
+6. *.holdJobs.list - jobs on hold given reason $holdReason
+7. *.summaryJobs.list - summary info about directories
+8. *.notCompDirs.list - path to not completed directories
+9. *.compDirs.list - path to completed directories
 
 *Note:* one of the output files of MakeReport.sh is a list of not completed
 directories. If you want to rerun an analysis of these directories after some
@@ -210,11 +217,11 @@ relResPath
 
 
 # ParDim Stage
-In argsFile, there are 4 available arguments for the ParDim to initialize
+In argsFile, there are 4 available arguments for the ParDim to initialise
 the pipeline. Variables have to be specified after the label: \#\#[ ParDim.sh ]\#\#
    
-1. dataPath - path to analyzed data or resulting path for download stage
-   (later about that). The path is used to construct a list of analyzed
+1. dataPath - path to analysed data or resulting path for download stage
+   (later about that). The path is used to construct a list of analysed
    directories.
 2. resPath - path to results of the whole pipeline.
    By default every stage creates its own directory corresponding
@@ -298,7 +305,7 @@ prescripts before a multi-mapping script.
      More details are in the section 
      [Built-in Download stage](#built-in-download-stage).
   2. Assume we have a text file with N rows, where N rows contain information
-     about M IDs. We would like to analyze every ID separately. In this case the
+     about M IDs. We would like to analyse every ID separately. In this case the
      argument transFiles is a path to a text file. The DAG file consists of M
      independent jobs, where every job creates a directory and saves the part of
      a file corresponding to one of M IDs. Thus, creating an input for a
@@ -353,9 +360,21 @@ Following arguments are provided for a single-mapping DagMaker script by ParDim:
      *Note:* Structure of file is provided in the subsection
      [Structure of selectJobsListInfo and inpDataInfo](##structure-of-selectjobslistinfo-and-inpdatainfo)
      
+### Deactivate directory for future analysis
+ParDim is designed to proceed analysis of future stage just with successfully
+completed directories on current stage. In case of Multi-mapping script ParDim
+can trace automatically which directories are successful in an analysis. However,
+with Single-mapping scripts to avoid the specific directory from an analysis,
+the developer of a stage should create a file "RemoveDirFromList" 
+(ex. in bash: touch RemoveDirFromList).
+
+As an example, the Download stage creates a file RemoveDirFromList in case
+if any of files for a directory is not downloaded. Then the whole directory
+is skipped for further analysis.
+     
 ## Multi-mapping scripts
 Multi-mapping scripts are designed to construct a DAG file based on information
-about a specific directory, so that script is executed for every of analyzed
+about a specific directory, so that script is executed for every of analysed
 directories independently.
 
 ### Examples
@@ -410,7 +429,7 @@ Following arguments are provided for a multi-mapping DagMaker script by ParDim:
      a $transOut variable, which is described under number 7 in the current list.
      
   5. inpDataInfo - file with all information about results of a previous
-     stage for the same directory (specific analyzed directory and not for
+     stage for the same directory (specific analysed directory and not for
      all of them as in single script).
 
       *Note:* Structure of file is provided in the subsection
@@ -454,18 +473,27 @@ tar -czf "$outTar" "$dirWithAllresults ($resDir in case of multi-mapping script)
 The difference between a selectJobsListInfo and an InpDataInfo is that first file
 is a combination of a second file, but for all directories in a resulting
 directory of a previous stage. While the InpDataInfo contains information from a
-previous stage just about single analyzed directory. The InpDataInfo structure is:
+previous stage just about single analysed directory. The InpDataInfo structure is:
 
 --------------------------------------------------------------------------------
 
 /path/to/directory/or/subdirectory:  
-fileName1  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes  
+fileName1  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
+s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
 ....  
-fileNameN  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes  
+fileNameN  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
+s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
 
 --------------------------------------------------------------------------------
 
 *Note:* the space above is '\t' - tabular.
+*Note:* Since it is possible that data might be a soft link, fileName - name of
+a real file where the link point to (target file). Size is size of the real file.
+s - symbol which means if current file is a link or not. linkName - name of a
+soft link, that is, a real file in sub-directory. If file is link, then fileName
+is relative path, which looks like ../anotherSubDir/anotherFileName. While, a
+linkName is just a name without relative path.
+*Note* If file is not a link, then you will see just 2 columns instead of 4.
 
 ## Useful functions
 
@@ -482,7 +510,7 @@ Input:
  1. argsFile - file with arguments
  2. scrLabNum - number of script labels
  3. scrLabList - vector of names of labels (scrLab) to search for arguments
-    according to the patern: \#\#[    scrLab  ]\#\# - Case sensetive. Might be
+    according to the pattern: \#\#[    scrLab  ]\#\# - Case sensitive. Might be
     spaces before, after and inside, but cannot split scrLab, \#\#[, and ]\#\#.
     If scrLab = "", the whole file is searched for arguments, and the last
     entry is selected.
@@ -492,7 +520,7 @@ Input:
  7. isSkipLabErr - binary variable true/false. If true, then no error appeared
     for missed labels, if other labels exist. No arguments are read.
 
-Possible behavior:
+Possible behaviour:
 - If a variable is defined before reading file, and in a file it is empty,
   then original value remains.
 - If an argument repeats several times, then warning appears and last value is
@@ -510,11 +538,11 @@ That is, after first column space has to be provided!
 
 ### PrintArgs
 Location: ParDim/scripts/funcListParDim.sh  
-PrintArgs - prints arguments for a specific script in a beautifull way.
+PrintArgs - prints arguments for a specific script in a beautiful way.
 
 Input:
  1. scrName - name of a script to print arguments for. Can be an empty. It just
-    influences a header message.
+    influences a header message.  
  2-. posArgs - vector of arguments to print values of.
 
 Usage: PrintArgs "$scriptName" "${posArgs[@]}"
@@ -529,18 +557,19 @@ Description of input arguments is provided in makeCon.sh in the section "Input".
 # Built-in Download stage
 To download files (to fill a dataPath) ParDim provides a stage Download.
 
-The Download stage of the ParDim downloads uniques files from a table and
+The Download stage of the ParDim downloads unique files from a table and
 distribute them in right directories. The Download stage is written for HTCondor
 environment, it downloads every file on separate machine simultaneously, which
-boosts downloading process.
+boosts downloading process. The further analysis is executed just for directories
+where all files were downloaded successfully.
 
-The Download stage provides several useful options: 
- 1. save files with original names or based on relative name according to the
+The Download stage provides several useful options:  
+ 1. Save files with original names or based on relative name according to the
     pattern: "relativeName.columnName.extensionOfRelativeName"
-    e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz
-    
+    e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz  
     *Note:* names for relativeName column is not changed
- 2. combine several files in one output
+ 2. Combine several files in one output
+ 3. Create links for same files in different directories to save space.
 
 *Note:* the name of the stage is reserved for a built-in ParDim script
 boostDownload.sh. If you would like to use your own downloading script, you
@@ -602,7 +631,16 @@ where , - delimeter for a table (argument tabDelim)
  6. tabRelNameCol - column to use as a base for names if tabOrigName=false.  
                     Default value is 2.
  7. tabIsSize - true/false. Indicates if table has size of files or not.  
-                Default value is false.
+                Default value is false and size detected automatically. 
  8. nDotsExt - number of dots before extension of download files starts.  
                Default value is 1.
+ 9. isCreateLinks - true/false. Indicates if create links of same files among
+                    experiments to save space.
+                    Default value is false.
+ 10. isZipRes - true/false. Indicates if zip resulting files when transfer
+                to the dataPath. It effects time of running the Downloading part,
+                but not the final result. If you believe that your files do not 
+                decrease size a lot after compression, for example, downloaded 
+                file is already compressed, then put false. It will accelerate
+                the Download part of a pipeline.
                
