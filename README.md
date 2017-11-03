@@ -437,7 +437,6 @@ Following arguments are provided for a multi-mapping DagMaker script by ParDim:
 
   Following arguments are provided to a DagMaker just to pass them further in an
   execution file.
-
   6. resDir - directory to save results, equals to a name of analysed directory.
   DagMaker has to pass a value of this variable exactly, without taking the full
   path or any other manipulations and should be used same way in an execution
@@ -483,7 +482,7 @@ fileName1  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
 s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
 ....  
 fileNameN  &nbsp;&nbsp;&nbsp;&nbsp; size in bytes &nbsp;&nbsp;&nbsp;&nbsp;
-s &nbsp;&nbsp;&nbsp;&nbsp; linkNameN  
+s &nbsp;&nbsp;&nbsp;&nbsp; linkName1  
 
 --------------------------------------------------------------------------------
 
@@ -544,7 +543,7 @@ PrintArgs - prints arguments for a specific script in a beautiful way.
 Input:
  1. scrName - name of a script to print arguments for. Can be an empty. It just
     influences a header message.  
- 2. posArgs - vector of arguments to print values of.
+ 2-. posArgs - vector of arguments to print values of.
 
 Usage: PrintArgs "$scriptName" "${posArgs[@]}"
 
@@ -570,7 +569,7 @@ The Download stage provides several useful options:
     e.g.: relativeName = enc.gz, columnName = ctl => output = enc.ctl.gz  
     *Note:* names for relativeName column is not changed
  2. Combine several files in one output
- 3. Create links for same files in different directories to save space
+ 3. Create links for same files in different directories to save space.
 
 *Note:* the name of the stage is reserved for a built-in ParDim script
 boostDownload.sh. If you would like to use your own downloading script, you
