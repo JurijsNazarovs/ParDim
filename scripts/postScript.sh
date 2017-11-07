@@ -59,7 +59,7 @@ FillListOfDirs(){
   #ls -d "$inpPath/"*/ > "$outfile"
   find "$inpPath/" -mindepth 1 -maxdepth 1 -type d\
        '!' -exec test -e "{}/RemoveDirFromList" ';' -print\
-       > "$outfile" # do not consider dirs with RemoveDirFromList file
+       > "$outfile" #do not consider dirs with RemoveDirFromList file
   if [[ "$?" -ne 0 ]]; then
       ErrMsg "Something went wrong with filling the list $outfile.
                Error: $?" "$?"
