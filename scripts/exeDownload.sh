@@ -6,11 +6,12 @@
 ## Libraries, input arguments
 shopt -s nullglob #allows create an empty array
 shopt -s extglob #to use !
-
+DOWNL_ERR_FL=0 # Global variable for downloading error
 CreateErrFile() {
   local curDir="$1"
   mkdir -p "$curDir"
   touch "$curDir/RemoveDirFromList"
+  #DOWNL_ERR_FL=1 #not successful downloading
 }
 
 
@@ -33,11 +34,23 @@ dirTmp=$(mktemp -dq tmpXXXX) #create tmp folder to tar everything inside later
 
 
 ## Downloading file
-wget "${link[@]}"
-exFl=$?
+downlCounter=1
+# Repeat Downloading at most 5 times in case of network issues
+while [[ $downlCounter -le 5 ]]; do
+  wget "${link[@]}"
+  DOWNL_ERR_FL=$?
+  if [[ "$DOWNL_ERR_FL" -eq 8 ]]; then
+      echo "Downloading was not successful! Error code: $DOWNL_ERR_FL"
+      echo "Attempt: $downlCounter/5"
+      ((downlCounter++))
+  else
+    downlCounter=100
+  fi
+done
 
-if [[ "$exFl" -ne 0 ]]; then
-    echo "Downloading was not successful! Error code: $exFl"
+
+if [[ "$DOWNL_ERR_FL" -ne 0 ]]; then
+    echo "Downloading was not successful! Error code: $DOWNL_ERR_FL"
     for i in "${!path[@]}"; do
       filePath="$dirTmp/${path[$i]}"
       curDir="${filePath%/*}"
@@ -112,6 +125,10 @@ if [[ "$isDry" = false ]]; then
     if [[ "$exFl" -eq 0 ]]; then
         mv "$dirTmp/$outTar" ./
     fi
+fi
+
+if [[ "$DOWNL_ERR_FL" -ne 0 ]]; then
+    exit "$DOWNL_ERR_FL"
 fi
 
 exit "$exFl"
