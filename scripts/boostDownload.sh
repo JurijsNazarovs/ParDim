@@ -338,7 +338,7 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   path="$(JoinToStr "$tabDelim" "${line[@]:2}")"
   # Create arguments string
   args="$(JoinToStr "\' \'" "$link" "$path" "$tabDelim" "$tabDelimJoin"\
-                    "\$(transOut)" "$isCreateLinks" "isZipRes" "false")"
+                    "\$(transOut)" "$isCreateLinks" "$isZipRes" "false")"
   #jobId="download$iter"
   jobId="$(printf "download%0${nZeros}d" "$((iter))")" 
   printf "JOB  $jobId $conFile\n" >> "$dagFile"
