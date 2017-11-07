@@ -9,11 +9,11 @@
 # 4. *.holJobsReason.list - holding lines given reason $holdReason
 # 5. *.holdJobs.list - jobs on hold given reason $holdReason
 # 6. *.time.list - time to construct and execute dag
+# 7. *.notCompDirs.list - path to completed dirs
 #
 # Multi task
-# 7. *.summaryJobs.list - summary info about dirs
-# 8. *.notCompDirs.list - path to not completed dirs
-# 9. *.compDirs.list - path to completed dirs
+# 8. *.summaryJobs.list - summary info about dirs
+# 9. *.compDirs.list - path to not completed dirs
 #
 # holdReason="" - all hold jobs
 #
@@ -178,6 +178,9 @@ for task in "${tasks[@]}"; do
       logFile="$jobsDir/singleMap/$task/$task.dag.dagman.out"
   fi
   echo
+
+  ChkExist "f" "$logFile" "Probably too early!
+                           Log file: $logFile \n"
 
 
   ## Detect running time
@@ -368,6 +371,7 @@ for task in "${tasks[@]}"; do
   comm -23 "$tmpFile2" "$compJobsFile" > "$holdJobsFile"
   printf "done\n"
 
+  
   ## Summary, completed dirs, not completed dirs
   if [[ "$taskMap" = *Multi* ]]; then
       ## Summary of jobs
@@ -436,6 +440,27 @@ for task in "${tasks[@]}"; do
       # Not completed dirs
       printf "Not completed directories ... "
       grep -v -f "$compDirsFile" "$selJobsListPath" > "$notCompDirsFile"
+      printf "done\n"
+  fi
+
+  if [[ "$taskMap" = *Single* ]]; then
+      resPath="$(
+      awk -F "\047"\
+      '{
+        for (i = 1; i <= NF; i++){
+            if ($i ~ "-a resPath"){
+               fileName = gensub(/(.+) -a .*/, "\\1", "", $(i+4))
+               print(fileName)
+               exit
+           }
+        }
+      }' <<< "$submitStr"
+              )"
+      
+      # Not completed dirs
+      printf "Not completed directories ... "
+      find "$resPath/" -mindepth 1 -maxdepth 1 -type d\
+           -exec test -e "{}/RemoveDirFromList" ';' -print > "$notCompDirsFile"
       printf "done\n"
   fi
 
