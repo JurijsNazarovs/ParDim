@@ -43,6 +43,7 @@ while [[ $downlCounter -le 5 ]]; do
       echo "Downloading was not successful! Error code: $DOWNL_ERR_FL"
       echo "Attempt: $downlCounter/5"
       ((downlCounter++))
+      sleep 10
   else
     downlCounter=100
   fi
