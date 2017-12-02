@@ -45,7 +45,7 @@ posArgs=("tabPath" "exePath"
          "tabIsOrigName" "tabRelNameCol" "tabIsSize" "nDotsExt"
          "isCreateLinks" "isZipRes")
 
-tabPath=""		#[R] path for table
+tabPath=""		#[R] path for table or name in case of ParDim
 exePath="$homePath/exeDownload.sh"
 isDispProgBar="true"    #use if results are not printed in file
 tabDelim=','		#delimeter to use in table
@@ -331,7 +331,7 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
       downSize=$((2*(line[0]/1024/1024/1024 + 1))) #in Gb, rounded + tarSize
   else
     numCopies=$((${#line[@]} - 2))
-    downSize=$((2*numCopies(line[0]/1024/1024/1024 + 1))) #in GB
+    downSize=$((2*numCopies*(line[0]/1024/1024/1024 + 1))) #in GB
   fi
   
   link="${line[1]}"
@@ -370,7 +370,7 @@ if [[ "$isSubmit" = true ]]; then
     EchoLineSh
 else
   EchoLineSh
-  echo "$dagFile is ready for a test"
+  echo "$dagFile is created but not submitted"
   EchoLineSh
 fi
   

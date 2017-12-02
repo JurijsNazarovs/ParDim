@@ -618,6 +618,7 @@ where , - delimeter for a table (argument tabDelim)
 ----------------------------------------
 *ARGUMENT FILE*
 ----------------------------------------
+ 0. exePath - should be: $softDir/ParDim/scripts/exeDownload.sh
  1. tabPath - path to an input table with links to files.
  2. tabDelim - delimeter used in a table.
                Default value is ','.		
