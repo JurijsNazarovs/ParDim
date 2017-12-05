@@ -409,6 +409,7 @@ Following arguments are provided for a multi-mapping DagMaker script by ParDim:
      jobId="$uniqJobId" #can be an iterator to count jobs  
      
      printf "JOB  $jobId $conFile\n" >> "$dagFile"  
+     
      printf "VARS $jobId transOut=\"$transOut.jobId.tar.gz\"\n" >> "$dagFile"  
      printf "VARS $jobId transMap=\"\$(transOut)=$resPath/\$(transOut)\"\n"\  
      \>\> "$dagFile"
