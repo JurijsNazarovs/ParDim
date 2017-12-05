@@ -436,11 +436,13 @@ Following arguments are provided for a multi-mapping DagMaker script by ParDim:
      [Structure of selectJobsListInfo and inpDataInfo](##structure-of-selectjobslistinfo-and-inpdatainfo)
 
   Following arguments are provided to a DagMaker just to pass them further in an
-  execution file.
+  execution file.  
+  
   6. resDir - directory to save results, equals to a name of analysed directory.
   DagMaker has to pass a value of this variable exactly, without taking the full
   path or any other manipulations and should be used same way in an execution
-  file.
+  file.  
+  
   7. transOut - an unique name of a tar file to tar $resDir in an execution file.
 
 ## Structure of a condor file
