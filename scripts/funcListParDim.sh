@@ -308,6 +308,33 @@ InterInt(){
   fi
 } 
 
+## Mapping functions
+IsInInt(){
+  # Function looks if value is in interval
+  # Is used to find inclussion of stages
+  # output: 1-inside, 0-no
+  
+  if [ "$#" -ne 2 ]; then
+      ErrMsg "Wrong input! Interval and a number have to be provided and not $# value(s)"
+  fi
+
+  local a=($1) 
+  local b=$2
+  
+  if [[ ${#a[@]} -ne 2 ]]; then
+      ErrMsg "Wrong input! Interval shoud have 2 finite boundaries"
+  fi
+
+  local aMinVal=$(Min ${a[@]})
+  local aMaxVal=$(Max ${a[@]})
+
+  if [[ $aMinVal -le $b && $aMaxVal -ge $b ]]; then
+      echo 1
+  else
+    echo 0
+  fi
+} 
+
 ArrayGetInd(){ 
   # Function returns all indecies of elements (for every element in array)
   # founded in array (exactly or contain, to search for containing,
