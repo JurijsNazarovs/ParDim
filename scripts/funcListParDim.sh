@@ -438,7 +438,7 @@ ReadArgs(){
   #        based on the patern: ##[    scrLab  ]## - Case sensetive. Might be
   #        spaces before, after and inside, but cannot split scrLab..
   #        If scrLab = "", the whole file is searched for arguments,
-  #        and the last entry is selected
+  #        and the last entry is selected, but scrLabNum=1
   #       -posArgNum  number of arguments to read
   #       -posArgList possible arguments to search for
   #       -reservArg  reserved argument which can't be duplicated
