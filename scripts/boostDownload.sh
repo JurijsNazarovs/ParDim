@@ -55,7 +55,7 @@ tabIsOrigName="true"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="false"       #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
-isCreateLinks="true"    #create links instead of real files
+isCreateLinks="false"    #create links instead of real files
 isZipRes="true"         #zip results for transfering
 
 if [[ -z $(RmSp "$resPath") ]]; then
