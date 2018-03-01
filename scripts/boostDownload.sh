@@ -51,7 +51,7 @@ isDispProgBar="true"    #use if results are not printed in file
 tabDelim=','		#delimeter to use in table
 tabDelimJoin=';'        #delimeter to use in table to join files
 tabDirCol=1             #index of column with directory
-tabIsOrigName="false"   #use original names or not (see tabRelNameCol)
+tabIsOrigName="true"   #use original names or not (see tabRelNameCol)
 tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="false"       #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
