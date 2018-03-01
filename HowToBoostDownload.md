@@ -19,7 +19,7 @@ jobsDir &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  ./Download.ParDim
 
 ##[ Download ]##  
 execute &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; true  
-transFiles &nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download  
+transFiles &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download  
 tabPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; name\_of\_file\_with\_links\_to\_download  
 exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh  
 
@@ -29,7 +29,6 @@ exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh
 You can append additional arguments to a file above for more specification.
 
 ### Table specification
--------------------------------------------------------------------------------
 1. tabDelim - delimeter used in a table.  
    Default value is ','.		
 2. tabDelimJoin - delimeter to use in a table to split files, which has to be
@@ -49,7 +48,6 @@ You can append additional arguments to a file above for more specification.
 6. nDotsExt - number of dots before extension of download files starts. Important
    if using not original names. Then the column name will append before extension.  
    Default value is 1.
--------------------------------------------------------------------------------
    
 ### Technical arguments to save memory or increase speed of downloading
 -------------------------------------------------------------------------------
