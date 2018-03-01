@@ -5,24 +5,23 @@ boostDownload. The minimum set of actions is described in the subsection
 
 
 # 1. Create a main argument file
-Create a text file "args.ParDim" or any other preferable name. Insert following 
-piece of text in the file, using text editor of your choice (emacs, vi, gedit, 
-nano and etc):
+Create a text file "args.ParDim" or any other preferable name. Insert piece of 
+text from [Minimum requirements](##minimum-requirements) to the file,
+using text editor of your choice (emacs, vi, gedit, nano and etc):
 
 ## Minimum requirements
 Use spaces or tabs to split values
 
 --------------------------------------------------------------------------------
-##[ ParDim.sh ]##
-dataPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_where\_to\_save\_data
-jobsDir &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ./Download.ParDim
+##[ ParDim.sh ]##  
+dataPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_where\_to\_save\_data  
+jobsDir &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ./Download.ParDim  
 
-##[ Download ]##
-execute &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; true
-transFiles &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download
-tabPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; name\_of\_file\_with\_links\_to\_download
-exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh
-
+##[ Download ]##  
+execute &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; true  
+transFiles &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download  
+tabPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; name\_of\_file\_with\_links\_to\_download  
+exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh  
 -------------------------------------------------------------------------------
 
 ## Additional arguments - advanced
