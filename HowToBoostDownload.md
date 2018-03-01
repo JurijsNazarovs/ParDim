@@ -50,7 +50,7 @@ You can append additional arguments to a file above for more specification.
    Default value is 1.
    
 ### Technical arguments to save memory or increase speed of downloading
--------------------------------------------------------------------------------
+
 1. tabIsSize - true/false. Indicates if table has size of files or not. This
    column might increase runs a little, if your table contains column with size
    near every ithe column with files. It is not necessary and ParDim detects
@@ -68,7 +68,6 @@ You can append additional arguments to a file above for more specification.
    file is already compressed, then put false. It will accelerate
    the Download part of a pipeline.  
    Default value is True.
---------------------------------------------------------------------------------
 
 # 2. Create a table with links to download
 
