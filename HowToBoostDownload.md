@@ -15,11 +15,11 @@ Use spaces or tabs to split values
 --------------------------------------------------------------------------------
 ##[ ParDim.sh ]##  
 dataPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_where\_to\_save\_data  
-jobsDir &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ./Download.ParDim  
+jobsDir &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  ./Download.ParDim  
 
 ##[ Download ]##  
 execute &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; true  
-transFiles &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download  
+transFiles &nbsp;&nbsp;&nbsp;&nbsp; path\_to\_file\_with\_links\_to\_download  
 tabPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; name\_of\_file\_with\_links\_to\_download  
 exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh  
 
