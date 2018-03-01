@@ -1,6 +1,6 @@
 This document describes how to use ParDim to download your files in a relatively
-short period, by parralyzing the downloading among a network of computers - 
-boostDownload. The minimum set of actions is described in the subsection 
+short period, by paralyzing the downloading among a network of computers.
+The minimum set of actions is described in the subsection 
 [Minimum requirements](##minimum-requirements)
 
 
