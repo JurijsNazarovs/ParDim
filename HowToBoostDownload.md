@@ -63,11 +63,10 @@ You can append additional arguments to a file above for more specification.
    Default value is false.
 3. isZipRes - true/false. Indicates if zip resulting files when transfer
    to the dataPath. It effects time of running the Downloading part,
-   but not the final result. If you believe that your files do not 
-   decrease size a lot after compression, for example, downloaded 
-   file is already compressed, then put false. It will accelerate
-   the Download part of a pipeline.  
-   Default value is True.
+   but not the final result. If you believe that your files 
+   decrease size a lot after compression, then put true.
+   It might accelerate downlaoding and help with a traffic load.  
+   Default value is false.
 
 # 2. Create a table with links to download
 
