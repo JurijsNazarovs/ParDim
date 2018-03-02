@@ -56,7 +56,7 @@ tabRelNameCol=2         #column to use as a base for names if tabOrigName=false
 tabIsSize="false"       #if table has size of files
 nDotsExt=1              # # of dots before  extension of download files starts
 isCreateLinks="false"    #create links instead of real files
-isZipRes="true"         #zip results for transfering
+isZipRes="false"         #zip results for transfering
 
 if [[ -z $(RmSp "$resPath") ]]; then
     posArgs=("${posArgs[@]}" "resPath")
@@ -141,6 +141,9 @@ tabOut=$(mktemp -q "$jobsDir/${tabPath##*/}"Out.XXXX) #create tmp file
 tabTmp1=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp1.XXXX) #create tmp file
 tabTmp2=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp2.XXXX) #create tmp file
 tabTmp3=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp3.XXXX) #create tmp file
+
+# Delete ^M from file
+tr -d "\015" < "$tabPath" > "$tabOut" && mv "$tabOut" "$tabPath"
 
 printf "" > "$tabOut"
 for i in "${colIter[@]}"; do
