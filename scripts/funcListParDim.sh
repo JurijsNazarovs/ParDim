@@ -251,8 +251,8 @@ ChkUrl(){
   local string=$1
   local regex='^(https?|ftp|file)://'
   regex+='[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-‌​A-Za-z0-9\+&@#/%=~_|‌​]$'
-  if [[ $string =~ $regex ]]
-  then 
+  if [[ $string =~ $regex ]]; then
+  #if curl --output /dev/null --silent --fail -r 0-0 "$string"; then
       echo "true"
   else
     echo "false"
