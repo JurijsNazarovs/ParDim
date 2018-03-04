@@ -24,6 +24,10 @@ tabPath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; name\_of\_file\_with\_links\_to\_download
 exePath &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; path\_to\_ParDim/scripts/exeDownload.sh  
 
 -------------------------------------------------------------------------------
+Note: for any new downloading, please provide new directory in jobsDir or
+remove the old one. Otherwise MakeReport might do not work and you will
+not be able to see progress of downloading.
+
 
 ## Additional arguments - advanced
 You can append additional arguments to a file above for more specification.
@@ -99,5 +103,5 @@ It creates directory reportDownload with all necessary information aobut downloa
 
 Enjoy your fast downloading!
                
-Note: if in several minutes condor_q command does not display you any result about ParDim,
+Note: if in several minutes condor_q command does not display you any results about ParDim,
 check conOut directory in jobsDir.
