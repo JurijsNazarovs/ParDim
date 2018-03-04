@@ -89,6 +89,8 @@ ENCSR473SUB,URL\_Chip,URL\_Ctl1,URL\_Dnase
 where , - delimeter for a table (argument tabDelim)
       ; - delimeter to join files (argument tabDelimJoin)
       
+Note: to avoid unexpected errors, please use plain text redactors to create a file,
+and not RTF.
 # 3. Start downloading
 Finally, to start downloading just type: ParDim.sh args.Pardim
 
@@ -97,3 +99,5 @@ It creates directory reportDownload with all necessary information aobut downloa
 
 Enjoy your fast downloading!
                
+Note: if in several minutes condor_q command does not display you any result about ParDim,
+check conOut directory in jobsDir.
