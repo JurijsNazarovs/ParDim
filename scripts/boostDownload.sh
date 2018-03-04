@@ -92,11 +92,16 @@ echo "Creating the temporary folder: $jobsDir"
 mkdir -p "$jobsDir"
 
 
+## Clean input file
+tabOut=$(mktemp -q "$jobsDir/${tabPath##*/}"Out.XXXX) #create tmp file
+tr -d "\015" < "$tabPath" > "$tabOut" #delete ^M
+sed '/^[[:space:]]*$/d' "$tabOut" > "$tabPath" #delete empty lines
+
+
 ## Initial checking of the table
 if [[ "$tabDelimJoin" = "$tabDelim" ]]; then
     ErrMsg "tabDelim and tabDelimJoin cannot be the same"
 fi
-
 # Read names of columns
 readarray -t colName <<< "$(head -1 $tabPath | tr $tabDelim '\n')"
 
@@ -137,15 +142,9 @@ readarray -t colIter <<< "$(seq 1 $colIterStep $(($tabDirCol - 1));\
                             seq $(($tabDirCol + 1)) $colIterStep $nCol)"
 
 # Copy $tabPath file to $out without the header
-tabOut=$(mktemp -q "$jobsDir/${tabPath##*/}"Out.XXXX) #create tmp file
 tabTmp1=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp1.XXXX) #create tmp file
 tabTmp2=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp2.XXXX) #create tmp file
 tabTmp3=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp3.XXXX) #create tmp file
-
-# Clean file
-tr -d "\015" < "$tabPath" > "$tabOut"
-sed '/^[[:space:]]*$/d' "$tabOut" > "$tabPath"
-
 
 printf "" > "$tabOut"
 for i in "${colIter[@]}"; do
