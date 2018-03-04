@@ -142,8 +142,10 @@ tabTmp1=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp1.XXXX) #create tmp file
 tabTmp2=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp2.XXXX) #create tmp file
 tabTmp3=$(mktemp -q "$jobsDir/${tabPath##*/}"Tmp3.XXXX) #create tmp file
 
-# Delete ^M from file
-tr -d "\015" < "$tabPath" > "$tabOut" && mv "$tabOut" "$tabPath"
+# Clean file
+tr -d "\015" < "$tabPath" > "$tabOut"
+sed '/^[[:space:]]*$/d' "$tabOut" > "$tabPath"
+
 
 printf "" > "$tabOut"
 for i in "${colIter[@]}"; do
