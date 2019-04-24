@@ -454,7 +454,7 @@ for a specific job. So, "$conFile" description is:
 --------------------------------------------------------------------------------
 
 ...  
-transfer_output = $(transOut)  
+transfer_output_files = $(transOut)  
 transfer_output_remaps = "$(transMap)"  
 arguments = "'arg1', 'arg2', '\$(transOut)', ...,
              'resDir - in case of multi-mapping script'"  

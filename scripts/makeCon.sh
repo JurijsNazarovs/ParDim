@@ -80,7 +80,7 @@ if [[ -n $(RmSp "$transFiles") ]]; then
 fi
 
 if [[ -n $(RmSp "$transOut") && -n $(RmSp "$transMap") ]]; then
-    printf "transfer_output = $transOut\n" >> "$conFile"
+    printf "transfer_output_files = $transOut\n" >> "$conFile"
     printf "transfer_output_remaps = \"$transMap\" \n" >> "$conFile"
 fi
 
